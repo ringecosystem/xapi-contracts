@@ -1,4 +1,5 @@
-import { AccountId, assert, LookupMap, near, view, call, NearBindgen } from "near-sdk-js";
+import { ContractBase } from "./standard.abstract";
+import { AccountId, assert, LookupMap, near } from "near-sdk-js";
 
 export type RequestId = string;
 export type Timestamp = bigint;
@@ -10,164 +11,162 @@ export enum RequestStatus {
 }
 
 export class Response<Answer> {
-  requestId: RequestId;
+  request_id: RequestId;
   reporters: AccountId[];
-  startedAt: Timestamp;
-  updatedAt: Timestamp;
+  started_at: Timestamp;
+  updated_at: Timestamp;
   answer: Answer;
   status: RequestStatus;
 
-  constructor(requestId: RequestId) {
-    this.requestId = requestId;
-    this.startedAt = near.blockTimestamp();
+  constructor(request_id: RequestId) {
+    this.request_id = request_id;
+    this.started_at = near.blockTimestamp();
     this.status = RequestStatus.FETCHING;
   }
 }
 
 export class Report<Answer> {
-  requestId: RequestId;
+  request_id: RequestId;
   reporter: AccountId;
   timestamp: Timestamp;
   answer: Answer;
-  constructor(requestId: RequestId, answer: Answer) {
-    this.requestId = requestId;
+  constructor(request_id: RequestId, answer: Answer) {
+    this.request_id = request_id;
     this.answer = answer;
     this.timestamp = near.blockTimestamp();
     this.reporter = near.signerAccountId();
   }
 }
 
-@NearBindgen({})
-export abstract class Aggregator<Answer> {
+export abstract class Aggregator<Answer> extends ContractBase {
   description: string;
   version: number;
-  latestRequestId: RequestId;
+  latest_request_id: RequestId;
+  // todo how to set?
   timeout: Timestamp;
 
-  // key: requestId, subKey: reporter accountId
-  reportLookup: LookupMap<Map<AccountId, Report<Answer>>>;
-  // key: requestId
-  responseLookup: LookupMap<Response<Answer>>;
+  // key: request_id, subKey: reporter accountId
+  report_lookup: LookupMap<Map<AccountId, Report<Answer>>>;
+  // key: request_id
+  response_lookup: LookupMap<Response<Answer>>;
 
-  getDescription(): string {
+  get_description(): string {
     return this.description;
   }
-  @view({})
-  getVersion(): number {
+  get_version(): number {
     return this.version;
   }
-
-  getLatestRequestId(): RequestId {
-    return this.latestRequestId;
+  get_latest_request_id(): RequestId {
+    return this.latest_request_id;
   }
-  getLatestResponse(): Response<Answer> {
-    assert(this.latestRequestId != null, "No latest response");
-    return this.responseLookup.get(this.latestRequestId);
+  get_latest_response(): Response<Answer> {
+    assert(this.latest_request_id != null, "No latest response");
+    return this.response_lookup.get(this.latest_request_id);
   }
-  getResponse(requestId: RequestId): Response<Answer> {
-    return this.responseLookup.get(requestId);
+  get_response({ request_id }: { request_id: RequestId }): Response<Answer> {
+    return this.response_lookup.get(request_id);
   }
 
-  abstract canReport(reporter: AccountId): boolean;
+  abstract can_report(): boolean;
 
-  @call({ payableFunction: true })
-  report({ requestId, answer }: { requestId: RequestId, answer: Answer }): void {
-    const report = new Report(requestId, answer);
+  report({ request_id, answer }: { request_id: RequestId, answer: Answer }): void {
+    const _report = new Report(request_id, answer);
 
-    const deposit = near.attachedDeposit();
-    const requiredDeposit = this.reportDeposit(report);
+    const _deposit = near.attachedDeposit();
+    const _required_eposit = this._report_deposit(_report);
     assert(
-      deposit >= requiredDeposit,
-      `Insufficient deposit, deposit: ${deposit}, required: ${requiredDeposit}`
+      _deposit >= _required_eposit,
+      `Insufficient deposit, deposit: ${_deposit}, required: ${_required_eposit}`
     );
-    const signer = near.signerAccountId();
 
-    assert(this.canReport(signer), "Reporting requirements not met");
+    assert(this.can_report(), "Reporting requirements not met");
 
-    const response = this.responseLookup.get(report.requestId);
-    if (response == null) {
+    const _response = this.response_lookup.get(request_id);
+    if (_response == null) {
       // Maybe first report
-      // !!! The requestId may be abused to prevent normal requests.
-      this.responseLookup.set(
-        report.requestId,
-        new Response<Answer>(report.requestId)
+      // !!! The request_id may be abused to prevent normal requests.
+      this.response_lookup.set(
+        request_id,
+        new Response<Answer>(request_id)
       );
-      this.reportLookup.set(
-        report.requestId,
+      this.report_lookup.set(
+        request_id,
         new Map<AccountId, Report<Answer>>()
       );
     }
-    const currentStatus = this.responseLookup.get(report.requestId).status;
+    const _status = this.response_lookup.get(request_id).status;
     // Only fetching request can accept reports.
     assert(
-      currentStatus == RequestStatus.FETCHING,
-      `The request status is ${currentStatus}`
+      _status == RequestStatus.FETCHING,
+      `The request status is ${_status}`
     );
 
-    const reports = this.reportLookup.get(requestId);
-    assert(reports.get(signer) == null, "Already reported");
-    reports.set(signer, report);
-    this.tryAggregate(requestId);
+    const _reports = this.report_lookup.get(request_id);
+    const _signer = near.signerAccountId();
+    assert(_reports.get(_signer) == null, "Already reported");
+    _reports.set(_signer, _report);
+    super.emit("XAPI_REPORT", _report);
+    this._try_aggregate(request_id);
   }
 
-  abstract _canAggregate(requestId: RequestId): boolean;
-  abstract _aggregate(requestId: RequestId): Answer;
+  abstract _can_aggregate(request_id: RequestId): boolean;
+  abstract _aggregate(request_id: RequestId): Answer;
 
-  private tryAggregate(requestId: RequestId): void {
-    if (this._canAggregate(requestId)) {
-      const _response = this.responseLookup.get(requestId);
+  private _try_aggregate(request_id: RequestId): void {
+    if (this._can_aggregate(request_id)) {
+      const _response = this.response_lookup.get(request_id);
       assert(
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      _response.answer = this._aggregate(requestId);
-      _response.reporters = Array.from(this.reportLookup.get(requestId).keys());
-      _response.updatedAt = near.blockTimestamp();
+      _response.answer = this._aggregate(request_id);
+      _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
+      _response.updated_at = near.blockTimestamp();
       _response.status = RequestStatus.DONE;
-      this.publish(requestId);
+      this._publish(request_id);
     }
   }
 
-  private publish(requestId: RequestId) {
-    const _response = this.responseLookup.get(requestId);
+  private _publish(request_id: RequestId) {
+    const _response = this.response_lookup.get(request_id);
     // todo request mpc signature
-    near.log(JSON.stringify(_response));
+    super.emit("XAPI_PUBLISH", _response);
   }
 
-  reportDeposit(report: Report<Answer>): bigint {
-    const bytes = BigInt(this.sizeOf(report));
+  private _report_deposit(report: Report<Answer>): bigint {
+    const _bytes = BigInt(this._size_of(report));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
-    const yoctoPerByte = BigInt(10 ** 22) / BigInt(1024);
-    return bytes * yoctoPerByte * BigInt(2);
+    const _yocto_per_byte = BigInt(10 ** 22) / BigInt(1024);
+    return _bytes * _yocto_per_byte * BigInt(2);
   }
 
-  private sizeOf(obj: any) {
-    let bytes = 0;
+  private _size_of(obj: any) {
+    let _bytes = 0;
     if (obj !== null && obj !== undefined) {
       switch (typeof obj) {
         case "number":
-          bytes += 8;
+          _bytes += 8;
           break;
         case "string":
-          bytes += obj.length * 2;
+          _bytes += obj.length * 2;
           break;
         case "boolean":
-          bytes += 4;
+          _bytes += 4;
           break;
         case "object":
-          const objClass = Object.prototype.toString.call(obj).slice(8, -1);
-          if (objClass === "Object" || objClass === "Array") {
-            for (let key in obj) {
-              if (!obj.hasOwnProperty(key)) continue;
-              this.sizeOf(obj[key]);
+          const _objClass = Object.prototype.toString.call(obj).slice(8, -1);
+          if (_objClass === "Object" || _objClass === "Array") {
+            for (let _key in obj) {
+              if (!obj.hasOwnProperty(_key)) continue;
+              this._size_of(obj[_key]);
             }
           } else {
-            bytes += obj.toString().length * 2;
+            _bytes += obj.toString().length * 2;
           }
           break;
       }
     }
-    return bytes;
+    return _bytes;
   }
 }
