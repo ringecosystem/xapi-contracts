@@ -10,6 +10,7 @@ export class Standard {
 }
 
 // nep297 <https://github.com/near/NEPs/blob/master/neps/nep-0297.md>
+// todo use  <https://github.com/near/near-sdk-js/blob/v1.0.0-0/packages/near-contract-standards/src/event.ts>
 export class EventLog extends Standard {
     event: string;
     data: any;

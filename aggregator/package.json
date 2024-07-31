@@ -1,10 +1,11 @@
 {
-  "name": "hello_near",
+  "name": "xapi_aggregator",
   "version": "1.0.0",
   "license": "(MIT AND Apache-2.0)",
   "type": "module",
   "scripts": {
     "build": "near-sdk-js build src/ormp.aggregator.ts build/ormp_aggregator.wasm",
+    "abi": "near-sdk-js build --generateABI src/ormp.aggregator.ts",
     "test": "$npm_execpath run build && ava -- ./build/ormp_aggregator.wasm"
   },
   "dependencies": {
