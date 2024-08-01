@@ -1,5 +1,5 @@
-import { ContractBase } from "./standard.abstract";
-import { AccountId, assert, call, LookupMap, near, NearBindgen, view } from "near-sdk-js";
+import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
+import { AccountId, assert, LookupMap, near } from "near-sdk-js";
 
 export type RequestId = string;
 export type Timestamp = bigint;
@@ -8,6 +8,18 @@ export enum RequestStatus {
   FETCHING,
   DONE,
   TIMEOUT,
+}
+
+class ReportEvent<Answer> extends Nep297Event {
+  constructor(data: Report<Answer>) {
+    super("Report", data)
+  }
+}
+
+class PublishEvent<Answer> extends Nep297Event {
+  constructor(data: Response<Answer>) {
+    super("Publish", data)
+  }
 }
 
 export class Response<Answer> {
@@ -40,7 +52,6 @@ export class Report<Answer> {
 
 export abstract class Aggregator<Answer> extends ContractBase {
   description: string;
-  version: number;
   latest_request_id: RequestId;
   // todo how to set?
   timeout: Timestamp;
@@ -50,11 +61,17 @@ export abstract class Aggregator<Answer> extends ContractBase {
   // key: request_id
   response_lookup: LookupMap<Response<Answer>>;
 
+  constructor(description: string, contract_metadata: ContractSourceMetadata) {
+    super(contract_metadata);
+    this.description = description;
+    this.timeout = BigInt(1000);
+
+    this.report_lookup = new LookupMap("report_lookup");
+    this.response_lookup = new LookupMap("response_lookup");
+  }
+
   get_description(): string {
     return this.description;
-  }
-  get_version(): number {
-    return this.version;
   }
   get_latest_request_id(): RequestId {
     return this.latest_request_id;
@@ -105,7 +122,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
     const _signer = near.signerAccountId();
     assert(_reports.get(_signer) == null, "Already reported");
     _reports.set(_signer, _report);
-    super.emit("XAPI_REPORT", _report);
+    new ReportEvent<Answer>(_report).emit();
     this._try_aggregate(request_id);
   }
 
@@ -130,7 +147,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
   private _publish(request_id: RequestId) {
     const _response = this.response_lookup.get(request_id);
     // todo request mpc signature
-    super.emit("XAPI_PUBLISH", _response);
+    new PublishEvent<Answer>(_response).emit();
   }
 
   private _report_deposit(report: Report<Answer>): bigint {

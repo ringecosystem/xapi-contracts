@@ -9,13 +9,35 @@ export class Standard {
     }
 }
 
+export abstract class NearEvent {
+
+    private internal_to_json_string(): string {
+        return JSON.stringify(this);
+    }
+
+    private internal_to_json_event_string(): string {
+        return `EVENT_JSON: ${this.internal_to_json_string()}`;
+    }
+
+    /**
+     * Logs the event to the host. This is required to ensure that the event is triggered
+     * and to consume the event.
+     */
+    emit(): void {
+        near.log(this.internal_to_json_event_string());
+    }
+}
+
 // nep297 <https://github.com/near/NEPs/blob/master/neps/nep-0297.md>
-// todo use  <https://github.com/near/near-sdk-js/blob/v1.0.0-0/packages/near-contract-standards/src/event.ts>
-export class EventLog extends Standard {
+export class Nep297Event extends NearEvent {
+    standard: string;
+    version: string;
     event: string;
     data: any;
     constructor(event: string, data: any) {
-        super("nep297", "1.0.0");
+        super();
+        this.standard = "nep297";
+        this.version = "1.0.0";
         this.event = event;
         this.data = data;
     }
@@ -25,7 +47,7 @@ export class EventLog extends Standard {
 export class ContractSourceMetadata {
     version: string | null;
     link: string | null;
-    standards: Standard[];
+    standards: Standard[] | null;
     constructor(version: string | null, link: string | null, standards: Standard[]) {
         this.version = version;
         this.link = link;
@@ -36,8 +58,8 @@ export class ContractSourceMetadata {
 export class ContractBase {
     contract_metadata: ContractSourceMetadata;
 
-    emit(event: string, data: any) {
-        near.log(JSON.stringify(new EventLog(event, data)));
+    constructor(contract_metadata: ContractSourceMetadata) {
+        this.contract_metadata = contract_metadata;
     }
 
     contract_source_metadata(): ContractSourceMetadata {
