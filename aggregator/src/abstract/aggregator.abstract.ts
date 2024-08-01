@@ -38,7 +38,6 @@ export class Report<Answer> {
   }
 }
 
-@NearBindgen({})
 export abstract class Aggregator<Answer> extends ContractBase {
   description: string;
   version: number;
@@ -51,31 +50,25 @@ export abstract class Aggregator<Answer> extends ContractBase {
   // key: request_id
   response_lookup: LookupMap<Response<Answer>>;
 
-  @view({})
   get_description(): string {
     return this.description;
   }
-  @view({})
   get_version(): number {
     return this.version;
   }
-  @view({})
   get_latest_request_id(): RequestId {
     return this.latest_request_id;
   }
-  @view({})
   get_latest_response(): Response<Answer> {
     assert(this.latest_request_id != null, "No latest response");
     return this.response_lookup.get(this.latest_request_id);
   }
-  @view({})
   get_response({ request_id }: { request_id: RequestId }): Response<Answer> {
     return this.response_lookup.get(request_id);
   }
 
   abstract can_report(): boolean;
 
-  @call({ payableFunction: true })
   report({ request_id, answer }: { request_id: RequestId, answer: Answer }): void {
     const _report = new Report(request_id, answer);
 
