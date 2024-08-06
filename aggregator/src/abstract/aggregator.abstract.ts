@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
-import { AccountId, assert, LookupMap, near } from "near-sdk-js";
+import { AccountId, assert, LookupMap, near, UnorderedMap, Vector } from "near-sdk-js";
 
 export type RequestId = string;
 export type Timestamp = bigint;
@@ -8,6 +8,26 @@ export enum RequestStatus {
   FETCHING,
   DONE,
   TIMEOUT,
+}
+
+export enum RequestMethod {
+  GET,
+  POST
+}
+
+export class RequestTemplate {
+  name: string;
+  url: string;
+  method: RequestMethod;
+  bodyJson: Object;
+  // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
+  answerPath: string;
+}
+
+class AddRequestTemplateEvent extends Nep297Event {
+  constructor(data: RequestTemplate) {
+    super("AddRequestTemplate", data)
+  }
 }
 
 class ReportEvent<Answer> extends Nep297Event {
@@ -56,6 +76,8 @@ export abstract class Aggregator<Answer> extends ContractBase {
   // todo how to set?
   timeout: Timestamp;
 
+  // key: template_name
+  request_templates: UnorderedMap<RequestTemplate>;
   // key: request_id, subKey: reporter accountId
   report_lookup: LookupMap<Map<AccountId, Report<Answer>>>;
   // key: request_id
@@ -64,33 +86,42 @@ export abstract class Aggregator<Answer> extends ContractBase {
   constructor(description: string, contract_metadata: ContractSourceMetadata) {
     super(contract_metadata);
     this.description = description;
-    this.timeout = BigInt(1000);
+    this.timeout = BigInt(60000);
 
+    this.request_templates = new UnorderedMap("request_templates");
     this.report_lookup = new LookupMap("report_lookup");
     this.response_lookup = new LookupMap("response_lookup");
   }
 
-  get_description(): string {
+  abstract get_description(): string;
+  _get_description(): string {
     return this.description;
   }
-  get_latest_request_id(): RequestId {
+
+  abstract get_latest_request_id(): string;
+  _get_latest_request_id(): RequestId {
     return this.latest_request_id;
   }
-  get_latest_response(): Response<Answer> {
+
+  abstract get_latest_response(): Response<Answer>;
+  _get_latest_response(): Response<Answer> {
     assert(this.latest_request_id != null, "No latest response");
     return this.response_lookup.get(this.latest_request_id);
   }
-  get_response({ request_id }: { request_id: RequestId }): Response<Answer> {
+
+  abstract get_response({ request_id }: { request_id: RequestId }): Response<Answer>;
+  _get_response({ request_id }: { request_id: RequestId }): Response<Answer> {
     return this.response_lookup.get(request_id);
   }
 
   abstract can_report(): boolean;
 
-  report({ request_id, answer }: { request_id: RequestId, answer: Answer }): void {
-    const _report = new Report(request_id, answer);
+  abstract report({ request_id, answer }: { request_id: RequestId, answer: Answer }): void;
+  _report({ request_id, answer }: { request_id: RequestId, answer: Answer }): void {
+    const __report = new Report(request_id, answer);
 
     const _deposit = near.attachedDeposit();
-    const _required_eposit = this._report_deposit(_report);
+    const _required_eposit = this._report_deposit(__report);
     assert(
       _deposit >= _required_eposit,
       `Insufficient deposit, deposit: ${_deposit}, required: ${_required_eposit}`
@@ -121,13 +152,36 @@ export abstract class Aggregator<Answer> extends ContractBase {
     const _reports = this.report_lookup.get(request_id);
     const _signer = near.signerAccountId();
     assert(_reports.get(_signer) == null, "Already reported");
-    _reports.set(_signer, _report);
-    new ReportEvent<Answer>(_report).emit();
+    _reports.set(_signer, __report);
+    new ReportEvent<Answer>(__report).emit();
     this._try_aggregate(request_id);
+  }
+
+  abstract add_request_template(request_template: RequestTemplate): void;
+  _add_request_template(request_template: RequestTemplate): void {
+    assert(request_template.name != null, "Template name is null");
+    assert(request_template.method != null, "Template method is null");
+    assert(request_template.url != null, "Template url is null");
+
+    assert(this.request_templates.get(request_template.name) == null, "Template name already exists");
+    this.request_templates.set(request_template.name, request_template);
+    new AddRequestTemplateEvent(request_template).emit();
+  }
+
+  abstract get_request_template({ request_template_name }: { request_template_name: string }): RequestTemplate
+  _get_request_template({ request_template_name }: { request_template_name: string }): RequestTemplate {
+    return this.request_templates.get(request_template_name);
+  }
+
+  abstract get_request_template_names(): Vector<string>;
+  _get_request_template_names(): Vector<string> {
+    return this.request_templates._keys;
   }
 
   abstract _can_aggregate(request_id: RequestId): boolean;
   abstract _aggregate(request_id: RequestId): Answer;
+
+
 
   private _try_aggregate(request_id: RequestId): void {
     if (this._can_aggregate(request_id)) {

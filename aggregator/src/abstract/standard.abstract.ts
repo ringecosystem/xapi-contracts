@@ -55,14 +55,16 @@ export class ContractSourceMetadata {
     }
 }
 
-export class ContractBase {
+export abstract class ContractBase {
     contract_metadata: ContractSourceMetadata;
 
     constructor(contract_metadata: ContractSourceMetadata) {
         this.contract_metadata = contract_metadata;
     }
 
-    contract_source_metadata(): ContractSourceMetadata {
+    abstract contract_source_metadata(): ContractSourceMetadata;
+
+    _contract_source_metadata(): ContractSourceMetadata {
         return this.contract_metadata;
     }
 }
