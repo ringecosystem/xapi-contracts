@@ -48,7 +48,7 @@ export class ContractSourceMetadata {
     version: string | null;
     link: string | null;
     standards: Standard[] | null;
-    constructor(version: string | null, link: string | null, standards: Standard[]) {
+    constructor({ version, link, standards }: { version: string | null, link: string | null, standards: Standard[] }) {
         this.version = version;
         this.link = link;
         this.standards = standards;
