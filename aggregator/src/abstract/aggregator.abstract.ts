@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
-import { AccountId, assert, LookupMap, near, UnorderedMap, Vector } from "near-sdk-js";
+import { AccountId, assert, LookupMap, near, UnorderedMap } from "near-sdk-js";
 
 export type RequestId = string;
 export type Timestamp = bigint;
@@ -216,14 +216,14 @@ export abstract class Aggregator<Answer> extends ContractBase {
     new RemoveDataSourceEvent(_removed).emit();
   }
 
-  abstract get_data_source({ data_source_name }: { data_source_name: string }): DataSource
-  _get_data_source({ data_source_name }: { data_source_name: string }): DataSource {
-    return this.data_sources.get(data_source_name);
-  }
-
-  abstract get_data_source_names(): Vector<string>;
-  _get_data_source_names(): Vector<string> {
-    return this.data_sources._keys;
+  abstract get_data_sources(): DataSource[]
+  _get_data_sources(): DataSource[] {
+    const _keys = this.data_sources._keys;
+    const _values: DataSource[] = [];
+    for (let i = 0; i < _keys.length; i++) {
+      _values.push(this.data_sources[i]);
+    }
+    return _values;
   }
 
   abstract _can_aggregate(request_id: RequestId): boolean;

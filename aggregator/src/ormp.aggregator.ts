@@ -86,12 +86,8 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_response({ request_id });
   }
   @view({})
-  get_data_source({ data_source_name }: { data_source_name: string; }): DataSource {
-    return super._get_data_source({ data_source_name })
-  }
-  @view({})
-  get_data_source_names(): Vector<string> {
-    return super._get_data_source_names();
+  get_data_sources(): DataSource[] {
+    return super._get_data_sources()
   }
   @view({})
   contract_source_metadata(): ContractSourceMetadata {
