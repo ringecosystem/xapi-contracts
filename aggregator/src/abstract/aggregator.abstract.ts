@@ -15,6 +15,22 @@ export enum RequestMethod {
   POST
 }
 
+export class PublishChainConfig {
+  chain_id: bigint;
+  xapi_address: string;
+  gas_limit: number;
+  max_fee_per_gas: bigint;
+  max_priority_fee_per_gas: bigint;
+
+  constructor(chain_id: bigint, xapi_address: string, gas_limit: number, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint) {
+    this.chain_id = chain_id;
+    this.xapi_address = xapi_address;
+    this.gas_limit = gas_limit;
+    this.max_fee_per_gas = max_fee_per_gas;
+    this.max_priority_fee_per_gas = max_priority_fee_per_gas;
+  }
+}
+
 export class DataSource {
   name: string;
   url: string;
@@ -94,6 +110,7 @@ export class Report<Result> {
   reporter: AccountId;
   timestamp: Timestamp;
   chain_id: bigint;
+  // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
   nonce: bigint;
   answers: Answer<Result>[];
   constructor(request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[]) {
@@ -118,6 +135,8 @@ export abstract class Aggregator<Result> extends ContractBase {
   report_lookup: LookupMap<Map<AccountId, Report<Result>>>;
   // key: request_id
   response_lookup: LookupMap<Response<Result>>;
+  // key: chain_id
+  publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
   constructor({ description, multichain_mpc, timeout, contract_metadata, }: { description: string, multichain_mpc: AccountId, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
