@@ -22,7 +22,17 @@ export class DataSource {
   headers: Object;
   body_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
-  answer_path: string;
+  result_path: string;
+}
+
+export class Answer<Result> {
+  data_source_name: string;
+  result: Result;
+
+  constructor(data_source_name: string, result: Result) {
+    this.data_source_name = data_source_name;
+    this.result = result;
+  }
 }
 
 class AddDataSourceEvent extends Nep297Event {
@@ -37,30 +47,30 @@ class RemoveDataSourceEvent extends Nep297Event {
   }
 }
 
-class TimeoutEvent<Answer> extends Nep297Event {
-  constructor(data: Response<Answer>) {
+class TimeoutEvent<Result> extends Nep297Event {
+  constructor(data: Response<Result>) {
     super("Timeout", data)
   }
 }
 
-class ReportEvent<Answer> extends Nep297Event {
-  constructor(data: Report<Answer[]>) {
+class ReportEvent<Result> extends Nep297Event {
+  constructor(data: Report<Result>) {
     super("Report", data)
   }
 }
 
-class PublishEvent<Answer> extends Nep297Event {
-  constructor(data: Response<Answer>) {
+class PublishEvent<Result> extends Nep297Event {
+  constructor(data: Response<Result>) {
     super("Publish", data)
   }
 }
 
-export class Response<Answer> {
+export class Response<Result> {
   request_id: RequestId;
   reporters: AccountId[];
   started_at: Timestamp;
   updated_at: Timestamp;
-  answer: Answer;
+  result: Result;
   status: RequestStatus;
 
   constructor(request_id: RequestId) {
@@ -70,20 +80,24 @@ export class Response<Answer> {
   }
 }
 
-export class Report<Answer> {
+export class Report<Result> {
   request_id: RequestId;
   reporter: AccountId;
   timestamp: Timestamp;
-  answer: Answer;
-  constructor(request_id: RequestId, answer: Answer) {
+  chain_id: bigint;
+  nonce: bigint;
+  answers: Answer<Result>[];
+  constructor(request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[]) {
     this.request_id = request_id;
-    this.answer = answer;
+    this.chain_id = chain_id;
+    this.nonce = nonce;
+    this.answers = answers;
     this.timestamp = near.blockTimestamp();
     this.reporter = near.signerAccountId();
   }
 }
 
-export abstract class Aggregator<Answer> extends ContractBase {
+export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   timeout: Timestamp;
@@ -91,9 +105,9 @@ export abstract class Aggregator<Answer> extends ContractBase {
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
   // key: request_id, subKey: reporter accountId
-  report_lookup: LookupMap<Map<AccountId, Report<Answer[]>>>;
+  report_lookup: LookupMap<Map<AccountId, Report<Result>>>;
   // key: request_id
-  response_lookup: LookupMap<Response<Answer>>;
+  response_lookup: LookupMap<Response<Result>>;
 
   constructor({ description, timeout, contract_metadata }: { description: string, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
@@ -132,22 +146,27 @@ export abstract class Aggregator<Answer> extends ContractBase {
     return this.latest_request_id;
   }
 
-  abstract get_latest_response(): Response<Answer>;
-  _get_latest_response(): Response<Answer> {
+  abstract get_latest_response(): Response<Result>;
+  _get_latest_response(): Response<Result> {
     assert(this.latest_request_id != null, "No latest response");
     return this.response_lookup.get(this.latest_request_id);
   }
 
-  abstract get_response({ request_id }: { request_id: RequestId }): Response<Answer>;
-  _get_response({ request_id }: { request_id: RequestId }): Response<Answer> {
+  abstract get_response({ request_id }: { request_id: RequestId }): Response<Result>;
+  _get_response({ request_id }: { request_id: RequestId }): Response<Result> {
     return this.response_lookup.get(request_id);
   }
 
   abstract can_report(): boolean;
 
-  abstract report({ request_id, answers }: { request_id: RequestId, answers: Answer[] }): void;
-  _report({ request_id, answers }: { request_id: RequestId, answers: Answer[] }): void {
-    const __report = new Report(request_id, answers);
+  abstract report({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }): void;
+  _report({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }): void {
+    assert(request_id == null, "request_id is null");
+    assert(chain_id == null, "chain_id is null");
+    assert(nonce == null, "nonce is null");
+    assert(answers == null || answers.length == 0, "answers is empty");
+
+    const __report = new Report<Result>(request_id, chain_id, nonce, answers);
 
     const _deposit = near.attachedDeposit();
     const _required_deposit = this._report_deposit(__report);
@@ -164,11 +183,11 @@ export abstract class Aggregator<Answer> extends ContractBase {
       // !!! The request_id may be abused to prevent normal requests.
       this.response_lookup.set(
         request_id,
-        new Response<Answer>(request_id)
+        new Response<Result>(request_id)
       );
       this.report_lookup.set(
         request_id,
-        new Map<AccountId, Report<Answer[]>>()
+        new Map<AccountId, Report<Result>>()
       );
       _response = this.response_lookup.get(request_id);
     }
@@ -189,7 +208,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
     const _signer = near.signerAccountId();
     assert(_reports.get(_signer) == null, "Already reported");
     _reports.set(_signer, __report);
-    new ReportEvent<Answer>(__report).emit();
+    new ReportEvent<Result>(__report).emit();
     this._try_aggregate(request_id);
   }
 
@@ -200,7 +219,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
     assert(data_source.name != null, "Datasource name is null");
     assert(data_source.method != null, "Datasource method is null");
     assert(data_source.url != null, "Datasource url is null");
-    assert(data_source.answer_path != null, "Datasource answer_path is null")
+    assert(data_source.result_path != null, "Datasource result_path is null")
 
     assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
     this.data_sources.set(data_source.name, data_source);
@@ -227,7 +246,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
   }
 
   abstract _can_aggregate(request_id: RequestId): boolean;
-  abstract _aggregate(request_id: RequestId): Answer;
+  abstract _aggregate(request_id: RequestId): Result;
 
   private _try_aggregate(request_id: RequestId): void {
     if (this._can_aggregate(request_id)) {
@@ -236,7 +255,7 @@ export abstract class Aggregator<Answer> extends ContractBase {
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      _response.answer = this._aggregate(request_id);
+      _response.result = this._aggregate(request_id);
       _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
       _response.updated_at = near.blockTimestamp();
       _response.status = RequestStatus.DONE;
@@ -247,10 +266,10 @@ export abstract class Aggregator<Answer> extends ContractBase {
   private _publish(request_id: RequestId) {
     const _response = this.response_lookup.get(request_id);
     // todo request mpc signature
-    new PublishEvent<Answer>(_response).emit();
+    new PublishEvent<Result>(_response).emit();
   }
 
-  private _report_deposit(report: Report<Answer[]>): bigint {
+  private _report_deposit(report: Report<Result>): bigint {
     const _bytes = BigInt(this._size_of(report));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear

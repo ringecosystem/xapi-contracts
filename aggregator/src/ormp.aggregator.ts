@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
-import { NearBindgen, near, call, view, AccountId, initialize, migrate, assert, Vector } from "near-sdk-js";
-import { Aggregator, DataSource, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
+import { NearBindgen, near, call, view, migrate, assert } from "near-sdk-js";
+import { Aggregator, Answer, DataSource, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
 
 @NearBindgen({})
@@ -44,8 +44,8 @@ class OrmpAggregator extends Aggregator<string> {
   /// calls
 
   @call({ payableFunction: true })
-  report({ request_id, answers }: { request_id: RequestId; answers: string[]; }): void {
-    super._report({ request_id, answers });
+  report({ request_id, chain_id, nonce, answers }: { request_id: RequestId; chain_id: bigint; nonce: bigint; answers: Answer<string>[]; }): void {
+    super._report({ request_id, chain_id, nonce, answers });
   }
 
   @call({ payableFunction: true })
@@ -94,4 +94,3 @@ class OrmpAggregator extends Aggregator<string> {
     return super._contract_source_metadata();
   }
 }
-
