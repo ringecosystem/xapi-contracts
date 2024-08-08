@@ -261,8 +261,6 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
   abstract _aggregate({ request_id }: { request_id: RequestId }): Result;
 
-  // !!! safe?
-  abstract aggregate_external({ request_id }: { request_id: RequestId }): void;
   _try_aggregate({ request_id }: { request_id: RequestId }): void {
     if (this._can_aggregate({ request_id })) {
       const _response = this.response_lookup.get(request_id);
@@ -278,8 +276,6 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  // !!! safe?
-  abstract publish_external({ request_id }: { request_id: RequestId }): void;
   _publish({ request_id }: { request_id: RequestId }): void {
     const _response = this.response_lookup.get(request_id);
     // todo request mpc signature

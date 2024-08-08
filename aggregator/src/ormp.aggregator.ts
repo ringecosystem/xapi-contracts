@@ -49,16 +49,6 @@ class OrmpAggregator extends Aggregator<string> {
     super._report({ request_id, chain_id, nonce, answers });
   }
 
-  @call({})
-  aggregate_external({ request_id }: { request_id: RequestId }): void {
-    super._try_aggregate({ request_id });
-  }
-
-  @call({})
-  publish_external({ request_id }: { request_id: RequestId }): void {
-    super._publish({ request_id })
-  }
-
   @call({ payableFunction: true })
   add_data_source(data_source: DataSource): void {
     super._add_data_source(data_source);
