@@ -23,6 +23,15 @@ export class DataSource {
   body_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
+
+  constructor(name: string, url: string, method: RequestMethod, headers: Object, body_json: Object, result_path: string) {
+    this.name = name;
+    this.url = url;
+    this.method = method;
+    this.headers = headers;
+    this.body_json = body_json;
+    this.result_path = result_path;
+  }
 }
 
 export class Answer<Result> {
