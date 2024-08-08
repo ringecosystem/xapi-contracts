@@ -5,11 +5,12 @@ import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator<string> {
-  /// Need to implement
+  // !!! Need to implement
 
   constructor() {
     super({
       description: "ORMP Aggregator", timeout: null,
+      multichain_mpc: "v2.multichain-mpc.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -27,11 +28,11 @@ class OrmpAggregator extends Aggregator<string> {
     assert(near.signerAccountId() == near.currentAccountId(), `Permission denied, ${near.signerAccountId()} != ${near.currentAccountId()}`);
   }
 
-  _can_aggregate(requestId: RequestId): boolean {
+  _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
     throw new Error("Method not implemented.");
   }
 
-  _aggregate(requestId: RequestId): string {
+  _aggregate({ request_id }: { request_id: RequestId }): string {
     throw new Error("Method not implemented.");
   }
 
@@ -41,11 +42,21 @@ class OrmpAggregator extends Aggregator<string> {
     near.storageRemove("STATE");
   }
 
-  /// calls
+  /// Calls
 
   @call({ payableFunction: true })
   report({ request_id, chain_id, nonce, answers }: { request_id: RequestId; chain_id: bigint; nonce: bigint; answers: Answer<string>[]; }): void {
     super._report({ request_id, chain_id, nonce, answers });
+  }
+
+  @call({})
+  aggregate_external({ request_id }: { request_id: RequestId }): void {
+    super._try_aggregate({ request_id });
+  }
+
+  @call({})
+  publish_external({ request_id }: { request_id: RequestId }): void {
+    super._publish({ request_id })
   }
 
   @call({ payableFunction: true })
@@ -63,7 +74,7 @@ class OrmpAggregator extends Aggregator<string> {
     super._set_timeout({ timeout })
   }
 
-  /// views
+  /// Views
 
   @view({})
   get_description(): string {

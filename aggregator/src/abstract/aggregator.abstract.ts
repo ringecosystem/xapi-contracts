@@ -110,6 +110,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   timeout: Timestamp;
+  multichain_mpc: AccountId;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -118,12 +119,15 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: request_id
   response_lookup: LookupMap<Response<Result>>;
 
-  constructor({ description, timeout, contract_metadata }: { description: string, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, multichain_mpc, timeout, contract_metadata, }: { description: string, multichain_mpc: AccountId, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
+    this.multichain_mpc = multichain_mpc;
     if (!timeout) {
       // Default timeout: 2 hours
       this.timeout = BigInt(18000);
+    } else {
+      this.timeout = timeout;
     }
 
     this.data_sources = new UnorderedMap("data_sources");
@@ -218,7 +222,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     assert(_reports.get(_signer) == null, "Already reported");
     _reports.set(_signer, __report);
     new ReportEvent<Result>(__report).emit();
-    this._try_aggregate(request_id);
+    this._try_aggregate({ request_id });
   }
 
   abstract add_data_source(data_source: DataSource): void;
@@ -254,25 +258,29 @@ export abstract class Aggregator<Result> extends ContractBase {
     return _values;
   }
 
-  abstract _can_aggregate(request_id: RequestId): boolean;
-  abstract _aggregate(request_id: RequestId): Result;
+  abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
+  abstract _aggregate({ request_id }: { request_id: RequestId }): Result;
 
-  private _try_aggregate(request_id: RequestId): void {
-    if (this._can_aggregate(request_id)) {
+  // !!! safe?
+  abstract aggregate_external({ request_id }: { request_id: RequestId }): void;
+  _try_aggregate({ request_id }: { request_id: RequestId }): void {
+    if (this._can_aggregate({ request_id })) {
       const _response = this.response_lookup.get(request_id);
       assert(
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      _response.result = this._aggregate(request_id);
+      _response.result = this._aggregate({ request_id });
       _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
       _response.updated_at = near.blockTimestamp();
       _response.status = RequestStatus.DONE;
-      this._publish(request_id);
+      this._publish({ request_id });
     }
   }
 
-  private _publish(request_id: RequestId) {
+  // !!! safe?
+  abstract publish_external({ request_id }: { request_id: RequestId }): void;
+  _publish({ request_id }: { request_id: RequestId }): void {
     const _response = this.response_lookup.get(request_id);
     // todo request mpc signature
     new PublishEvent<Result>(_response).emit();
