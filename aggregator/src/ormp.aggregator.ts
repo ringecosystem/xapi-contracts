@@ -44,6 +44,12 @@ class OrmpAggregator extends Aggregator<string> {
 
   /// Calls
 
+  // todo remove after testing
+  @call({})
+  publish({ request_id }: { request_id: RequestId }): Uint8Array {
+    return this._publish({ request_id });
+  }
+
   @call({ payableFunction: true })
   report({ request_id, chain_id, nonce, answers }: { request_id: RequestId; chain_id: bigint; nonce: bigint; answers: Answer<string>[]; }): void {
     super._report({ request_id, chain_id, nonce, answers });

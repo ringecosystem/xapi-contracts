@@ -1,4 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
+import { ethereumTransaction } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, UnorderedMap } from "near-sdk-js";
 
 export type RequestId = string;
@@ -295,10 +296,27 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  _publish({ request_id }: { request_id: RequestId }): void {
+  _publish({ request_id }: { request_id: RequestId }): Uint8Array {
     const _response = this.response_lookup.get(request_id);
+    // assert(_response != null, `${request_id} does not exist`);
+
     // todo request mpc signature
+    const encoded = ethereumTransaction({
+      chainId: BigInt(11155111),
+      nonce: BigInt(1),
+      maxPriorityFeePerGas: BigInt(145926504),
+      maxFeePerGas: BigInt(17544136403),
+      gasLimit: BigInt(21000),
+      to: "0xe0f3B7e68151E9306727104973752A415c2bcbEb",
+      value: BigInt(10000000000000000),
+      data: new Uint8Array(0),
+      accessList: []
+    });
+
+    // [217,205,244,193,150,175,218,123,107,205,196,18,36,196,95,176,228,235,211,179,95,200,47,190,83,246,35,14,208,117,207,202]
+
     new PublishEvent<Result>(_response).emit();
+    return encoded;
   }
 
   private _report_deposit(report: Report<Result>): bigint {
