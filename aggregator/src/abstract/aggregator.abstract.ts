@@ -1,6 +1,7 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
 import { ethereumTransaction } from "../lib/ethereum";
-import { AccountId, assert, LookupMap, near, UnorderedMap } from "near-sdk-js";
+import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
+import { sizeOf } from "../lib/helper";
 
 export type RequestId = string;
 export type Timestamp = bigint;
@@ -85,8 +86,8 @@ class ReportEvent<Result> extends Nep297Event {
   }
 }
 
-class PublishEvent<Result> extends Nep297Event {
-  constructor(data: Response<Result>) {
+class PublishEvent extends Nep297Event {
+  constructor(data: string) {
     super("Publish", data)
   }
 }
@@ -128,7 +129,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   timeout: Timestamp;
-  multichain_mpc: AccountId;
+  mpc_contract: AccountId;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -139,10 +140,10 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, multichain_mpc, timeout, contract_metadata, }: { description: string, multichain_mpc: AccountId, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, mpc_contract, timeout, contract_metadata, }: { description: string, mpc_contract: AccountId, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
-    this.multichain_mpc = multichain_mpc;
+    this.mpc_contract = mpc_contract;
     if (!timeout) {
       // Default timeout: 2 hours
       this.timeout = BigInt(18000);
@@ -296,63 +297,77 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  _publish({ request_id }: { request_id: RequestId }): Uint8Array {
+  _publish({ request_id }: { request_id: RequestId }): NearPromise {
     const _response = this.response_lookup.get(request_id);
     // assert(_response != null, `${request_id} does not exist`);
 
     // todo request mpc signature
-    const encoded = ethereumTransaction({
+    const payload = ethereumTransaction({
       chainId: BigInt(11155111),
       nonce: BigInt(1),
-      maxPriorityFeePerGas: BigInt(145926504),
-      maxFeePerGas: BigInt(17544136403),
-      gasLimit: BigInt(21000),
+      maxPriorityFeePerGas: BigInt(53611994),
+      maxFeePerGas: BigInt(1695509583),
+      gasLimit: BigInt(50000),
       to: "0xe0f3B7e68151E9306727104973752A415c2bcbEb",
-      value: BigInt(10000000000000000),
+      value: BigInt(5000000000000000),
       data: new Uint8Array(0),
       accessList: []
     });
 
-    // [217,205,244,193,150,175,218,123,107,205,196,18,36,196,95,176,228,235,211,179,95,200,47,190,83,246,35,14,208,117,207,202]
+    const payload_arr = Array.from(payload);
+    near.log("payload", payload_arr, this.mpc_contract);
+    // 215,91,147,81,5,211,171,61,184,185,105,11,93,160,46,31,46,184,4,159,21,167,69,34,35,91,31,56,138,152,163,51
 
-    new PublishEvent<Result>(_response).emit();
-    return encoded;
+    const mpc_args = {
+      "request": {
+        "key_version": 0,
+        "payload": payload_arr,
+        "path": "test"
+      }
+    }
+    const promise = NearPromise.new(this.mpc_contract)
+      .functionCall("sign", JSON.stringify(mpc_args), BigInt(1), ONE_TERA_GAS * BigInt(250))
+      .then(
+        NearPromise.new(near.currentAccountId())
+          .functionCall(
+            "publish_callback",
+            JSON.stringify({ request_id: "123456" }),
+            BigInt(0),
+            BigInt(30000000000000)
+          )
+      );
+
+    const _index = promise.constructRecursively();
+    near.log("promise", _index);
+
+    return promise.asReturn();
+  }
+
+  abstract publish_callback({ request_id }: { request_id: RequestId }): void
+
+  _publish_callback({ request_id }: { request_id: RequestId }): void {
+    const _result0 = this._promise_result({ promise_index: 0 });
+    near.log(`publish call back ${request_id}, 0: ${_result0.success}, ${_result0.result}`);
+    new PublishEvent(request_id).emit();
   }
 
   private _report_deposit(report: Report<Result>): bigint {
-    const _bytes = BigInt(this._size_of(report));
+    const _bytes = BigInt(sizeOf(report));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
     const _yocto_per_byte = BigInt(10 ** 22) / BigInt(1024);
     return _bytes * _yocto_per_byte * BigInt(2);
   }
 
-  private _size_of(obj: any) {
-    let _bytes = 0;
-    if (obj !== null && obj !== undefined) {
-      switch (typeof obj) {
-        case "number":
-          _bytes += 8;
-          break;
-        case "string":
-          _bytes += obj.length * 2;
-          break;
-        case "boolean":
-          _bytes += 4;
-          break;
-        case "object":
-          const _objClass = Object.prototype.toString.call(obj).slice(8, -1);
-          if (_objClass === "Object" || _objClass === "Array") {
-            for (let _key in obj) {
-              if (!obj.hasOwnProperty(_key)) continue;
-              this._size_of(obj[_key]);
-            }
-          } else {
-            _bytes += obj.toString().length * 2;
-          }
-          break;
-      }
+  private _promise_result({ promise_index }: { promise_index: PromiseIndex }): { result: string; success: boolean } {
+    let result, success;
+    try {
+      result = near.promiseResult(promise_index);
+      success = true;
+    } catch {
+      result = undefined;
+      success = false;
     }
-    return _bytes;
+    return { result, success };
   }
 }

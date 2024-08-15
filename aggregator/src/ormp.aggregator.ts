@@ -1,5 +1,5 @@
 // Find all our documentation at https://docs.near.org
-import { NearBindgen, near, call, view, migrate, assert } from "near-sdk-js";
+import { NearBindgen, near, call, view, migrate, assert, NearPromise } from "near-sdk-js";
 import { Aggregator, Answer, DataSource, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
 
@@ -10,7 +10,7 @@ class OrmpAggregator extends Aggregator<string> {
   constructor() {
     super({
       description: "ORMP Aggregator", timeout: null,
-      multichain_mpc: "v2.multichain-mpc.testnet",
+      mpc_contract: "v1.signer-prod.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -46,8 +46,13 @@ class OrmpAggregator extends Aggregator<string> {
 
   // todo remove after testing
   @call({})
-  publish({ request_id }: { request_id: RequestId }): Uint8Array {
+  publish({ request_id }: { request_id: RequestId }): NearPromise {
     return this._publish({ request_id });
+  }
+
+  @call({ privateFunction: true })
+  publish_callback({ request_id }: { request_id: RequestId; }): void {
+    super._publish_callback({ request_id });
   }
 
   @call({ payableFunction: true })

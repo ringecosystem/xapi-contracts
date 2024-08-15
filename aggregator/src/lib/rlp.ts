@@ -1,3 +1,5 @@
+// Copy from https://github.com/ethers-io/ethers.js/blob/main/src.ts/utils/rlp-encode.ts
+
 /**
  *  An RLP-encoded structure.
  */
