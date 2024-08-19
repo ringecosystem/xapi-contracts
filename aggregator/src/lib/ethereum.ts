@@ -100,3 +100,31 @@ export function ethereumTransaction({
     // GetHashedMessageToSign: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/capabilities/eip2718.ts#L12
     return near.keccak256(messageToSign);
 }
+
+//========================= function call
+
+function encodeParameter(type: string, value: any) {
+    if (type === 'uint256') {
+        return toHexString(BigInt(value)).slice(2).padStart(64, '0');
+    } else if (type === 'bytes32') {
+        return value.slice(2).padStart(64, '0');
+    }
+}
+
+function getFunctionSelector(functionSignature: string) {
+    const bytes = Uint8Array.from(Array.from(functionSignature).map(letter => letter.charCodeAt(0)));
+    const keccakArray = near.keccak256(bytes);
+    const hexStr = toHexString(keccakArray).substring(0, 10);
+    near.log("function selector", hexStr);
+    return hexStr;
+}
+
+export function encodeFunctionCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
+    const selector = getFunctionSelector(functionSignature);
+    const encodedParams = params.map((param, index) => {
+        const type = functionSignature.split('(')[1].split(')')[0].split(',')[index].trim();
+        return encodeParameter(type, param);
+    }).join('');
+    near.log("encodedParams", encodedParams);
+    return selector + encodedParams;
+}

@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
-import { ethereumTransaction } from "../lib/ethereum";
+import { encodeFunctionCall, ethereumTransaction } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
 import { sizeOf } from "../lib/helper";
 
@@ -302,20 +302,28 @@ export abstract class Aggregator<Result> extends ContractBase {
     // assert(_response != null, `${request_id} does not exist`);
 
     // todo request mpc signature
-    const payload = ethereumTransaction({
-      chainId: BigInt(11155111),
-      nonce: BigInt(1),
-      maxPriorityFeePerGas: BigInt(53611994),
-      maxFeePerGas: BigInt(1695509583),
-      gasLimit: BigInt(50000),
-      to: "0xe0f3B7e68151E9306727104973752A415c2bcbEb",
-      value: BigInt(5000000000000000),
-      data: new Uint8Array(0),
-      accessList: []
-    });
+    const payload = encodeFunctionCall({
+      functionSignature: "importMessageRoot(uint256,uint256,bytes32)",
+      params: [BigInt(1), BigInt(2), "0x59d257dea734dcd4e732957c019601d6562fabcdad2298e7aa36c4f2417157c4"]
+    })
 
     const payload_arr = Array.from(payload);
-    near.log("payload", payload_arr, this.mpc_contract);
+
+
+    // const payload = ethereumTransaction({
+    //   chainId: BigInt(11155111),
+    //   nonce: BigInt(1),
+    //   maxPriorityFeePerGas: BigInt(53611994),
+    //   maxFeePerGas: BigInt(1695509583),
+    //   gasLimit: BigInt(50000),
+    //   to: "0xe0f3B7e68151E9306727104973752A415c2bcbEb",
+    //   value: BigInt(5000000000000000),
+    //   data: new Uint8Array(0),
+    //   accessList: []
+    // });
+
+    // const payload_arr = Array.from(payload);
+    // near.log("payload", payload_arr, this.mpc_contract);
     // 215,91,147,81,5,211,171,61,184,185,105,11,93,160,46,31,46,184,4,159,21,167,69,34,35,91,31,56,138,152,163,51
 
     const mpc_args = {
@@ -337,17 +345,14 @@ export abstract class Aggregator<Result> extends ContractBase {
           )
       );
 
-    const _index = promise.constructRecursively();
-    near.log("promise", _index);
-
     return promise.asReturn();
   }
 
   abstract publish_callback({ request_id }: { request_id: RequestId }): void
 
   _publish_callback({ request_id }: { request_id: RequestId }): void {
-    const _result0 = this._promise_result({ promise_index: 0 });
-    near.log(`publish call back ${request_id}, 0: ${_result0.success}, ${_result0.result}`);
+    const _result = this._promise_result({ promise_index: 0 });
+    near.log(`publish call back ${request_id}, ${_result.success}, ${_result.result}`);
     new PublishEvent(request_id).emit();
   }
 
@@ -360,7 +365,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   }
 
   private _promise_result({ promise_index }: { promise_index: PromiseIndex }): { result: string; success: boolean } {
-    let result, success;
+    let result: string, success: boolean;
     try {
       result = near.promiseResult(promise_index);
       success = true;
