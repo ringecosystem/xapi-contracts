@@ -6,7 +6,7 @@ type AccessList = Array<[Address, Array<BytesLike>]>;
 
 const EIP_1559_TYPE: number = 0x02;
 
-function toHexString(value: BytesLike | bigint | number): string {
+export function toHexString(value: BytesLike | bigint | number): string {
     if (typeof value === 'bigint' || typeof value === 'number') {
         return '0x' + value.toString(16);
     }
@@ -16,7 +16,7 @@ function toHexString(value: BytesLike | bigint | number): string {
     return '0x' + Array.from(value, (byte) => ('0' + (byte & 0xFF).toString(16)).slice(-2)).join('');
 }
 
-function hexToBytes(hex: string): Uint8Array {
+export function hexToBytes(hex: string): Uint8Array {
     if (hex.startsWith('0x')) hex = hex.slice(2);
     if (hex.length % 2) hex = '0' + hex;
     const bytes = new Uint8Array(hex.length / 2);
@@ -37,7 +37,7 @@ export function parseEthAddress(address: string): Address {
     return address;
 }
 
-function bigIntToUnpaddedBytes(value: BigInt): Uint8Array {
+export function bigIntToUnpaddedBytes(value: BigInt): Uint8Array {
     let hexString = value.toString(16);
 
     if (hexString.length % 2 !== 0) {
@@ -83,11 +83,11 @@ export function ethereumTransaction({
         bigIntToUnpaddedBytes(maxFeePerGas),
         bigIntToUnpaddedBytes(gasLimit),
         hexToBytes(to),
-        bigIntToUnpaddedBytes(value),
+        value > 0 ? bigIntToUnpaddedBytes(value) : new Uint8Array(),
         data,
         accessList
     ];
-    // near.log("rawData", rawData);
+    near.log("rawData", rawData);
 
     // Serialize: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/capabilities/eip2718.ts#L17
     const rlpEncoded = encodeRlp(rawData);
@@ -95,7 +95,7 @@ export function ethereumTransaction({
     const messageToSign = new Uint8Array(rlpEncodedBytes.length + 1);
     messageToSign[0] = EIP_1559_TYPE;
     messageToSign.set(rlpEncodedBytes, 1);
-    // near.log("messageToSign", messageToSign)
+    near.log("messageToSign", Array.from(messageToSign))
 
     // GetHashedMessageToSign: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/capabilities/eip2718.ts#L12
     return near.keccak256(messageToSign);
@@ -103,7 +103,7 @@ export function ethereumTransaction({
 
 //========================= function call
 
-function encodeParameter(type: string, value: any) {
+export function encodeParameter(type: string, value: any) {
     if (type === 'uint256') {
         return toHexString(BigInt(value)).slice(2).padStart(64, '0');
     } else if (type === 'bytes32') {
@@ -111,11 +111,11 @@ function encodeParameter(type: string, value: any) {
     }
 }
 
-function getFunctionSelector(functionSignature: string) {
+export function getFunctionSelector(functionSignature: string) {
     const bytes = Uint8Array.from(Array.from(functionSignature).map(letter => letter.charCodeAt(0)));
     const keccakArray = near.keccak256(bytes);
     const hexStr = toHexString(keccakArray).substring(0, 10);
-    near.log("function selector", hexStr);
+    // near.log("function selector", hexStr);
     return hexStr;
 }
 
@@ -125,6 +125,6 @@ export function encodeFunctionCall({ functionSignature, params }: { functionSign
         const type = functionSignature.split('(')[1].split(')')[0].split(',')[index].trim();
         return encodeParameter(type, param);
     }).join('');
-    near.log("encodedParams", encodedParams);
+    // near.log("encodedParams", encodedParams);
     return selector + encodedParams;
 }
