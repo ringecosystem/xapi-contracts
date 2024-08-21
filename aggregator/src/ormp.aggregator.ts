@@ -1,5 +1,5 @@
 // Find all our documentation at https://docs.near.org
-import { NearBindgen, near, call, view, migrate, assert, NearPromise } from "near-sdk-js";
+import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, DataSource, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
 
@@ -11,6 +11,7 @@ class OrmpAggregator extends Aggregator<string> {
     super({
       description: "ORMP Aggregator", timeout: null,
       mpc_contract: "v1.signer-prod.testnet",
+      mpc_attached_balance: BigInt(10 ** 24),
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -75,11 +76,29 @@ class OrmpAggregator extends Aggregator<string> {
     super._set_timeout({ timeout })
   }
 
+  @call({})
+  set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId; }): void {
+    super._set_mpc_contract({ mpc_contract });
+  }
+
+  @call({})
+  set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint; }): void {
+    super._set_mpc_attached_balance({ mpc_attached_balance })
+  }
+
   /// Views
 
   @view({})
   get_description(): string {
     return super._get_description();
+  }
+  @view({})
+  get_mpc_contract(): AccountId {
+    return super._get_mpc_contract();
+  }
+  @view({})
+  get_mpc_attached_balance(): bigint {
+    return super._get_mpc_attached_balance();
   }
   @view({})
   get_timeout(): Timestamp {

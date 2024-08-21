@@ -10,6 +10,7 @@ export enum RequestStatus {
   FETCHING,
   DONE,
   TIMEOUT,
+  PUBLISHED,
 }
 
 export enum RequestMethod {
@@ -20,11 +21,11 @@ export enum RequestMethod {
 export class PublishChainConfig {
   chain_id: bigint;
   xapi_address: string;
-  gas_limit: number;
+  gas_limit: bigint;
   max_fee_per_gas: bigint;
   max_priority_fee_per_gas: bigint;
 
-  constructor(chain_id: bigint, xapi_address: string, gas_limit: number, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint) {
+  constructor(chain_id: bigint, xapi_address: string, gas_limit: bigint, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.gas_limit = gas_limit;
@@ -86,8 +87,22 @@ class ReportEvent<Result> extends Nep297Event {
   }
 }
 
+class PublishData {
+  request_id: RequestId;
+  response: Response<any>;
+  chain_config: PublishChainConfig;
+  signature: string;
+
+  constructor(request_id: RequestId, response: Response<any>, chain_config: PublishChainConfig, signature: string) {
+    this.request_id = request_id;
+    this.response = response;
+    this.chain_config = chain_config;
+    this.signature = signature;
+  }
+}
+
 class PublishEvent extends Nep297Event {
-  constructor(data: string) {
+  constructor(data: PublishData) {
     super("Publish", data)
   }
 }
@@ -97,8 +112,14 @@ export class Response<Result> {
   reporters: AccountId[];
   started_at: Timestamp;
   updated_at: Timestamp;
-  result: Result;
   status: RequestStatus;
+  // Build in _publish
+  call_data: string;
+
+  // 👇 These values should be aggregated from reporter's answer
+  result: Result;
+  nonce: bigint;
+  chain_id: bigint;
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
@@ -130,6 +151,8 @@ export abstract class Aggregator<Result> extends ContractBase {
   latest_request_id: RequestId;
   timeout: Timestamp;
   mpc_contract: AccountId;
+  // Deposit to request mpc, the surplus will be refunded to this contract.
+  mpc_attached_balance: bigint;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -140,10 +163,11 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, mpc_contract, timeout, contract_metadata, }: { description: string, mpc_contract: AccountId, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, mpc_contract, mpc_attached_balance, timeout, contract_metadata, }: { description: string, mpc_contract: AccountId, mpc_attached_balance: bigint, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
     this.mpc_contract = mpc_contract;
+    this.mpc_attached_balance = mpc_attached_balance;
     if (!timeout) {
       // Default timeout: 2 hours
       this.timeout = BigInt(18000);
@@ -161,6 +185,29 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract get_description(): string;
   _get_description(): string {
     return this.description;
+  }
+
+  abstract set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId }): void;
+  _set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId }): void {
+    this._assert_operator();
+    this.mpc_contract = mpc_contract;
+  }
+
+  abstract get_mpc_contract(): AccountId;
+  _get_mpc_contract() {
+    return this.mpc_contract;
+  }
+
+  abstract set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint }): void;
+  _set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint }): void {
+    this._assert_operator();
+    assert(mpc_attached_balance > BigInt(0), "MPC attached balance should be greater than 0.")
+    this.mpc_attached_balance = mpc_attached_balance;
+  }
+
+  abstract get_mpc_attached_balance(): bigint;
+  _get_mpc_attached_balance() {
+    return this.mpc_attached_balance;
   }
 
   abstract set_timeout({ timeout }: { timeout: Timestamp }): void;
@@ -300,24 +347,30 @@ export abstract class Aggregator<Result> extends ContractBase {
   // todo How to handle publish failed due to mpc failed?
   _publish({ request_id }: { request_id: RequestId }): NearPromise {
     const _response = this.response_lookup.get(request_id);
-    // assert(_response != null, `${request_id} does not exist`);
+    assert(_response != null, `Response for ${request_id} does not exist`);
+
+    const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
+    assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
 
     // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
     const function_call_data = encodeFunctionCall({
+      // todo target chain xapi fulfill
       functionSignature: "set(uint256)",
       params: [BigInt(7777)]
     })
+    _response.call_data = function_call_data;
     near.log("functionCallData", function_call_data);
+
     const function_call_data_bytes = hexToBytes(function_call_data);
     near.log("bytes functionCallData", Array.from(function_call_data_bytes));
 
     const payload = ethereumTransaction({
-      chainId: BigInt(11155111),
-      nonce: BigInt(1),
-      maxPriorityFeePerGas: BigInt(1000000),
-      maxFeePerGas: BigInt(100000000),
-      gasLimit: BigInt(50000),
-      to: "0xe2a01146FFfC8432497ae49A7a6cBa5B9Abd71A3",
+      chainId: _response.chain_id,
+      nonce: _response.nonce,
+      maxPriorityFeePerGas: _chain_config.max_priority_fee_per_gas,
+      maxFeePerGas: _chain_config.max_fee_per_gas,
+      gasLimit: _chain_config.gas_limit,
+      to: _chain_config.xapi_address,
       value: BigInt(0),
       data: function_call_data_bytes,
       accessList: []
@@ -335,15 +388,15 @@ export abstract class Aggregator<Result> extends ContractBase {
       }
     }
     const promise = NearPromise.new(this.mpc_contract)
-      // todo attached can be refund? Avoid failed due to this value.
-      .functionCall("sign", JSON.stringify(mpc_args), BigInt(1000000000000000000000000), ONE_TERA_GAS * BigInt(250))
+      // 1 NEAR to request signature, the surplus will be refunded
+      .functionCall("sign", JSON.stringify(mpc_args), BigInt(this.mpc_attached_balance), ONE_TERA_GAS * BigInt(250))
       .then(
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "publish_callback",
-            JSON.stringify({ request_id: "123456" }),
+            JSON.stringify({ request_id: request_id }),
             BigInt(0),
-            BigInt(30000000000000)
+            BigInt(ONE_TERA_GAS * BigInt(30))
           )
       );
 
@@ -351,11 +404,15 @@ export abstract class Aggregator<Result> extends ContractBase {
   }
 
   abstract publish_callback({ request_id }: { request_id: RequestId }): void
-
   _publish_callback({ request_id }: { request_id: RequestId }): void {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`publish call back ${request_id}, ${_result.success}, ${_result.result}`);
-    new PublishEvent(request_id).emit();
+    const _response = this.response_lookup.get(request_id);
+    if (_result.success) {
+      _response.status = RequestStatus.PUBLISHED;
+      const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
+      new PublishEvent(new PublishData(request_id, _response, _chain_config, _result.result)).emit();
+    }
   }
 
   private _report_deposit(report: Report<Result>): bigint {
