@@ -44,10 +44,8 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   /// Calls
-
-  // todo remove after testing
   @call({})
-  publish({ request_id }: { request_id: RequestId }): NearPromise {
+  publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
     return this._publish({ request_id });
   }
 

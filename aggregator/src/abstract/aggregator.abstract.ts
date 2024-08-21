@@ -344,10 +344,13 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  // todo How to handle publish failed due to mpc failed?
+  // Use this if autopublish fails due to mpc failure. Any safe problem??
+  abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
   _publish({ request_id }: { request_id: RequestId }): NearPromise {
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
+
+    assert(_response.status == RequestStatus.DONE, `Response status is ${_response.status}, can't be published`)
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);

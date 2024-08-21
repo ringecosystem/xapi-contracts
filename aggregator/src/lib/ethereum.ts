@@ -87,7 +87,7 @@ export function ethereumTransaction({
         data,
         accessList
     ];
-    near.log("rawData", rawData);
+    // near.log("rawData", rawData);
 
     // Serialize: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/capabilities/eip2718.ts#L17
     const rlpEncoded = encodeRlp(rawData);
