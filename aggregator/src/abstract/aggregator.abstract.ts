@@ -396,6 +396,7 @@ export abstract class Aggregator<Result> extends ContractBase {
             "publish_callback",
             JSON.stringify({ request_id: request_id }),
             BigInt(0),
+            // Beware of the 300T cap with mpc gas
             BigInt(ONE_TERA_GAS * BigInt(30))
           )
       );
