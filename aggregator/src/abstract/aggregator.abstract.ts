@@ -297,14 +297,15 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
+  // todo How to handle publish failed due to mpc failed?
   _publish({ request_id }: { request_id: RequestId }): NearPromise {
     const _response = this.response_lookup.get(request_id);
     // assert(_response != null, `${request_id} does not exist`);
 
-    // todo Try to relay it
+    // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
     const function_call_data = encodeFunctionCall({
       functionSignature: "set(uint256)",
-      params: [BigInt(4637)]
+      params: [BigInt(7777)]
     })
     near.log("functionCallData", function_call_data);
     const function_call_data_bytes = hexToBytes(function_call_data);
@@ -312,9 +313,9 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     const payload = ethereumTransaction({
       chainId: BigInt(11155111),
-      nonce: BigInt(0),
-      maxPriorityFeePerGas: BigInt(111988097),
-      maxFeePerGas: BigInt(2870313550),
+      nonce: BigInt(1),
+      maxPriorityFeePerGas: BigInt(1000000),
+      maxFeePerGas: BigInt(100000000),
       gasLimit: BigInt(50000),
       to: "0xe2a01146FFfC8432497ae49A7a6cBa5B9Abd71A3",
       value: BigInt(0),
@@ -329,11 +330,13 @@ export abstract class Aggregator<Result> extends ContractBase {
       "request": {
         "key_version": 0,
         "payload": payload_arr,
+        // 0x4dd0A89Cb15D953Fc738362066b412fd303BCe17
         "path": "test"
       }
     }
     const promise = NearPromise.new(this.mpc_contract)
-      .functionCall("sign", JSON.stringify(mpc_args), BigInt(60000000000000000000000), ONE_TERA_GAS * BigInt(250))
+      // todo attached can be refund? Avoid failed due to this value.
+      .functionCall("sign", JSON.stringify(mpc_args), BigInt(1000000000000000000000000), ONE_TERA_GAS * BigInt(250))
       .then(
         NearPromise.new(near.currentAccountId())
           .functionCall(

@@ -78,7 +78,7 @@ export function ethereumTransaction({
     // Raw: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/1559/tx.ts#L150
     const rawData: RlpStructuredDataish = [
         bigIntToUnpaddedBytes(chainId),
-        bigIntToUnpaddedBytes(nonce),
+        nonce > 0 ? bigIntToUnpaddedBytes(nonce) : new Uint8Array(),
         bigIntToUnpaddedBytes(maxPriorityFeePerGas),
         bigIntToUnpaddedBytes(maxFeePerGas),
         bigIntToUnpaddedBytes(gasLimit),
