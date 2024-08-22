@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, RequestId, Response, StakingConfig, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
 
 @NearBindgen({})
@@ -10,8 +10,9 @@ class OrmpAggregator extends Aggregator<string> {
   constructor() {
     super({
       description: "ORMP Aggregator", timeout: null,
-      mpc_contract: "v1.signer-prod.testnet",
-      mpc_attached_balance: BigInt(10 ** 24),
+      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24) }),
+      // todo staking contract
+      staking_config: new StakingConfig({ staking_contract: "", top_threshold: 10 }),
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -44,6 +45,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   /// Calls
+
   @call({})
   publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
     return this._publish({ request_id });
@@ -70,18 +72,23 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({})
+  set_publish_chain_config(publis_chain_config: PublishChainConfig): void {
+    super._set_publish_chain_config(publis_chain_config);
+  }
+
+  @call({})
   set_timeout({ timeout }: { timeout: Timestamp; }): void {
     super._set_timeout({ timeout })
   }
 
   @call({})
-  set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId; }): void {
-    super._set_mpc_contract({ mpc_contract });
+  set_mpc_config(mpc_config: MpcConfig): void {
+    super._set_mpc_config(mpc_config);
   }
 
   @call({})
-  set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint; }): void {
-    super._set_mpc_attached_balance({ mpc_attached_balance })
+  set_staking_config(staking_config: StakingConfig): void {
+    super._set_staking_config(staking_config);
   }
 
   /// Views
@@ -91,16 +98,24 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_description();
   }
   @view({})
-  get_mpc_contract(): AccountId {
-    return super._get_mpc_contract();
+  get_mpc_config(): MpcConfig {
+    return super._get_mpc_config();
   }
   @view({})
-  get_mpc_attached_balance(): bigint {
-    return super._get_mpc_attached_balance();
+  get_staking_config(): StakingConfig {
+    return super._get_staking_config();
+  }
+  @view({})
+  get_report({ request_id, reporter_account }: { request_id: RequestId; reporter_account: AccountId; }): Report<string> {
+    return super._get_report({ request_id, reporter_account });
   }
   @view({})
   get_timeout(): Timestamp {
     return super._get_timeout();
+  }
+  @view({})
+  get_publish_chain_config({ chain_id }: { chain_id: bigint; }): PublishChainConfig {
+    return super._get_publish_chain_config({ chain_id })
   }
   @view({})
   get_latest_request_id(): string {

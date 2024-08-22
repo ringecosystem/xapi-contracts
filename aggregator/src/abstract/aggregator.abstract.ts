@@ -25,7 +25,7 @@ export class PublishChainConfig {
   max_fee_per_gas: bigint;
   max_priority_fee_per_gas: bigint;
 
-  constructor(chain_id: bigint, xapi_address: string, gas_limit: bigint, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint) {
+  constructor({ chain_id, xapi_address, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { chain_id: bigint, xapi_address: string, gas_limit: bigint, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.gas_limit = gas_limit;
@@ -43,7 +43,7 @@ export class DataSource {
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
 
-  constructor(name: string, url: string, method: RequestMethod, headers: Object, body_json: Object, result_path: string) {
+  constructor({ name, url, method, headers, body_json, result_path }: { name: string, url: string, method: RequestMethod, headers: Object, body_json: Object, result_path: string }) {
     this.name = name;
     this.url = url;
     this.method = method;
@@ -57,7 +57,7 @@ export class Answer<Result> {
   data_source_name: string;
   result: Result;
 
-  constructor(data_source_name: string, result: Result) {
+  constructor({ data_source_name, result }: { data_source_name: string, result: Result }) {
     this.data_source_name = data_source_name;
     this.result = result;
   }
@@ -93,7 +93,7 @@ class PublishData {
   chain_config: PublishChainConfig;
   signature: string;
 
-  constructor(request_id: RequestId, response: Response<any>, chain_config: PublishChainConfig, signature: string) {
+  constructor({ request_id, response, chain_config, signature }: { request_id: RequestId, response: Response<any>, chain_config: PublishChainConfig, signature: string }) {
     this.request_id = request_id;
     this.response = response;
     this.chain_config = chain_config;
@@ -136,7 +136,7 @@ export class Report<Result> {
   // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
   nonce: bigint;
   answers: Answer<Result>[];
-  constructor(request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[]) {
+  constructor({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }) {
     this.request_id = request_id;
     this.chain_id = chain_id;
     this.nonce = nonce;
@@ -146,13 +146,35 @@ export class Report<Result> {
   }
 }
 
+export class StakingConfig {
+  staking_contract: AccountId;
+  // Top n reporters can report data.
+  top_threshold: number;
+
+  constructor({ staking_contract, top_threshold }: { staking_contract: AccountId, top_threshold: number }) {
+    this.staking_contract = staking_contract;
+    this.top_threshold = top_threshold;
+  }
+}
+
+export class MpcConfig {
+  mpc_contract: AccountId;
+  // Deposit yocto to request mpc, the surplus will be refunded to this contract.
+  attached_balance: bigint;
+
+  constructor({ mpc_contract, attached_balance }: { mpc_contract: AccountId, attached_balance: bigint }) {
+    this.mpc_contract = mpc_contract;
+    this.attached_balance = attached_balance;
+  }
+}
+
 export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   timeout: Timestamp;
-  mpc_contract: AccountId;
-  // Deposit to request mpc, the surplus will be refunded to this contract.
-  mpc_attached_balance: bigint;
+
+  mpc_config: MpcConfig;
+  staking_config: StakingConfig;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -163,11 +185,12 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, mpc_contract, mpc_attached_balance, timeout, contract_metadata, }: { description: string, mpc_contract: AccountId, mpc_attached_balance: bigint, timeout: Timestamp, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, timeout, mpc_config, staking_config, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, staking_config: StakingConfig, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
-    this.mpc_contract = mpc_contract;
-    this.mpc_attached_balance = mpc_attached_balance;
+    this.mpc_config = mpc_config;
+    this.staking_config = staking_config;
+
     if (!timeout) {
       // Default timeout: 2 hours
       this.timeout = BigInt(18000);
@@ -187,27 +210,46 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.description;
   }
 
-  abstract set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId }): void;
-  _set_mpc_contract({ mpc_contract }: { mpc_contract: AccountId }): void {
+  abstract set_mpc_config(mpc_config: MpcConfig): void;
+  _set_mpc_config(mpc_config: MpcConfig): void {
     this._assert_operator();
-    this.mpc_contract = mpc_contract;
+    assert(mpc_config.mpc_contract != null, "MPC contract can't be null.");
+    assert(mpc_config.attached_balance > 0, "MPC attached balance should be greater than 0.");
+
+    this.mpc_config.mpc_contract = mpc_config.mpc_contract;
+    this.mpc_config.attached_balance = mpc_config.attached_balance;
   }
 
-  abstract get_mpc_contract(): AccountId;
-  _get_mpc_contract() {
-    return this.mpc_contract;
+  abstract get_mpc_config(): MpcConfig;
+  _get_mpc_config(): MpcConfig {
+    return this.mpc_config;
   }
 
-  abstract set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint }): void;
-  _set_mpc_attached_balance({ mpc_attached_balance }: { mpc_attached_balance: bigint }): void {
+  abstract set_staking_config(staking_config: StakingConfig): void;
+  _set_staking_config(staking_config: StakingConfig): void {
     this._assert_operator();
-    assert(mpc_attached_balance > BigInt(0), "MPC attached balance should be greater than 0.")
-    this.mpc_attached_balance = mpc_attached_balance;
+    assert(staking_config.staking_contract != null, "Staking contract can't be null.");
+    assert(staking_config.top_threshold > 0, "Staking top threshold should be greater than 0.")
+
+    this.staking_config.top_threshold = staking_config.top_threshold;
+    this.staking_config.staking_contract = staking_config.staking_contract;
   }
 
-  abstract get_mpc_attached_balance(): bigint;
-  _get_mpc_attached_balance() {
-    return this.mpc_attached_balance;
+  abstract get_staking_config(): StakingConfig;
+  _get_staking_config(): StakingConfig {
+    return this.staking_config;
+  }
+
+  abstract set_publish_chain_config(publis_chain_config: PublishChainConfig): void;
+  _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
+    this._assert_operator();
+    assert(publish_chain_config.chain_id != null, "Chain id can't be null");
+    this.publish_chain_config_lookup.set(publish_chain_config.chain_id.toString(), publish_chain_config);
+  }
+
+  abstract get_publish_chain_config({ chain_id }: { chain_id: bigint }): PublishChainConfig;
+  _get_publish_chain_config({ chain_id }: { chain_id: bigint }): PublishChainConfig {
+    return this.publish_chain_config_lookup.get(chain_id.toString());
   }
 
   abstract set_timeout({ timeout }: { timeout: Timestamp }): void;
@@ -225,6 +267,13 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract get_latest_request_id(): string;
   _get_latest_request_id(): RequestId {
     return this.latest_request_id;
+  }
+
+  abstract get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result>;
+  _get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result> {
+    const _report_map = this.report_lookup.get(request_id);
+    assert(_report_map != null, `Non reports for request_id: ${request_id}`);
+    return _report_map.get(reporter_account);
   }
 
   abstract get_latest_response(): Response<Result>;
@@ -247,7 +296,12 @@ export abstract class Aggregator<Result> extends ContractBase {
     assert(nonce == null, "nonce is null");
     assert(answers == null || answers.length == 0, "answers is empty");
 
-    const __report = new Report<Result>(request_id, chain_id, nonce, answers);
+    const __report = new Report<Result>({
+      request_id,
+      chain_id,
+      nonce,
+      answers
+    });
 
     const _deposit = near.attachedDeposit();
     const _required_deposit = this._report_deposit(__report);
@@ -379,7 +433,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       accessList: []
     });
     const payload_arr = Array.from(payload);
-    near.log("payload_arr", payload_arr, this.mpc_contract);
+    near.log("payload_arr", payload_arr);
     // 215,91,147,81,5,211,171,61,184,185,105,11,93,160,46,31,46,184,4,159,21,167,69,34,35,91,31,56,138,152,163,51
 
     const mpc_args = {
@@ -390,9 +444,9 @@ export abstract class Aggregator<Result> extends ContractBase {
         "path": "test"
       }
     }
-    const promise = NearPromise.new(this.mpc_contract)
+    const promise = NearPromise.new(this.mpc_config.mpc_contract)
       // 1 NEAR to request signature, the surplus will be refunded
-      .functionCall("sign", JSON.stringify(mpc_args), BigInt(this.mpc_attached_balance), ONE_TERA_GAS * BigInt(250))
+      .functionCall("sign", JSON.stringify(mpc_args), BigInt(this.mpc_config.attached_balance), ONE_TERA_GAS * BigInt(250))
       .then(
         NearPromise.new(near.currentAccountId())
           .functionCall(
@@ -415,7 +469,9 @@ export abstract class Aggregator<Result> extends ContractBase {
     if (_result.success) {
       _response.status = RequestStatus.PUBLISHED;
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
-      new PublishEvent(new PublishData(request_id, _response, _chain_config, _result.result)).emit();
+      new PublishEvent(new PublishData({
+        request_id, response: _response, chain_config: _chain_config, signature: _result.result
+      })).emit();
     }
   }
 
