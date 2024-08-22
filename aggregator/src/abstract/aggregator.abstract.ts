@@ -174,6 +174,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   timeout: Timestamp;
 
   mpc_config: MpcConfig;
+  // !! Setting this to null will not check the reporter's staking before aggregating.
   staking_config: StakingConfig;
 
   // key: data_source name
@@ -228,11 +229,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_staking_config(staking_config: StakingConfig): void;
   _set_staking_config(staking_config: StakingConfig): void {
     this._assert_operator();
-    assert(staking_config.staking_contract != null, "Staking contract can't be null.");
-    assert(staking_config.top_threshold > 0, "Staking top threshold should be greater than 0.")
-
-    this.staking_config.top_threshold = staking_config.top_threshold;
-    this.staking_config.staking_contract = staking_config.staking_contract;
+    this.staking_config = staking_config;
   }
 
   abstract get_staking_config(): StakingConfig;
@@ -243,7 +240,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_publish_chain_config(publis_chain_config: PublishChainConfig): void;
   _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
     this._assert_operator();
-    assert(publish_chain_config.chain_id != null, "Chain id can't be null");
+    assert(publish_chain_config.chain_id != null, "Chain id can't be null.");
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id.toString(), publish_chain_config);
   }
 
@@ -310,7 +307,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       `Insufficient deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
 
-    assert(this.can_report(), "Reporting requirements not met");
+    assert(this.can_report(), "Reporting requirements not met.");
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -383,19 +380,51 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
   abstract _aggregate({ request_id }: { request_id: RequestId }): Result;
 
-  _try_aggregate({ request_id }: { request_id: RequestId }): void {
+  _try_aggregate({ request_id }: { request_id: RequestId }): NearPromise {
     if (this._can_aggregate({ request_id })) {
       const _response = this.response_lookup.get(request_id);
       assert(
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      _response.result = this._aggregate({ request_id });
-      _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
-      _response.updated_at = near.blockTimestamp();
-      _response.status = RequestStatus.DONE;
-      this._publish({ request_id });
+      if (this.staking_config && this.staking_config.staking_contract) {
+        // todo Check staking before aggregating
+        const promise = NearPromise.new(this.staking_config.staking_contract)
+          .functionCall("top_list", JSON.stringify({ threshold: this.staking_config.top_threshold }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+          .then(
+            NearPromise.new(near.currentAccountId())
+              .functionCall(
+                "post_aggregate_callback",
+                JSON.stringify({ request_id: request_id }),
+                BigInt(0),
+                // Beware of the 300T cap with mpc gas
+                BigInt(ONE_TERA_GAS * BigInt(15))
+              )
+          );
+
+        return promise.asReturn();
+      } else {
+        this._post_aggregate({ request_id });
+      }
     }
+  }
+
+  abstract post_aggregate_callback({ request_id }: { request_id: RequestId }): void;
+  _post_aggregate({ request_id }: { request_id: RequestId }): void {
+    const _response = this.response_lookup.get(request_id);
+
+    if (this.staking_config && this.staking_config.staking_contract) {
+      const _reporters = _response.reporters;
+      // todo check _reporters is in the top list
+      // todo check the promise_index
+      const _result = this._promise_result({ promise_index: 0 });
+    }
+
+    _response.result = this._aggregate({ request_id });
+    _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
+    _response.updated_at = near.blockTimestamp();
+    _response.status = RequestStatus.DONE;
+    this._publish({ request_id });
   }
 
   // Use this if autopublish fails due to mpc failure. Any safe problem??
@@ -454,7 +483,7 @@ export abstract class Aggregator<Result> extends ContractBase {
             JSON.stringify({ request_id: request_id }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
-            BigInt(ONE_TERA_GAS * BigInt(30))
+            BigInt(ONE_TERA_GAS * BigInt(15))
           )
       );
 
