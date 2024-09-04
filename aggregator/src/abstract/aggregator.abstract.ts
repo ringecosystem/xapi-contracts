@@ -1,4 +1,4 @@
-import { ContractBase, Nep297Event, ContractSourceMetadata } from "./standard.abstract";
+import { ContractBase, Nep297Event, ContractSourceMetadata } from "../../../common/src/standard.abstract";
 import { encodeFunctionCall, ethereumTransaction, hexToBytes } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
 import { sizeOf } from "../lib/helper";

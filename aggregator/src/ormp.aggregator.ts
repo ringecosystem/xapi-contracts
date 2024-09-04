@@ -1,7 +1,7 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, RequestId, Response, StakingConfig, Timestamp } from "./abstract/aggregator.abstract";
-import { ContractSourceMetadata, Standard } from "./abstract/standard.abstract";
+import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator<string> {
