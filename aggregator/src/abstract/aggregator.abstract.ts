@@ -107,6 +107,11 @@ class PublishEvent extends Nep297Event {
   }
 }
 
+export class ReporterRequired {
+  quorum: number;
+  threshold: number;
+}
+
 export class Response<Result> {
   request_id: RequestId;
   reporters: AccountId[];
@@ -135,12 +140,14 @@ export class Report<Result> {
   chain_id: bigint;
   // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
   nonce: bigint;
+  reporter_required: ReporterRequired;
   answers: Answer<Result>[];
-  constructor({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }) {
+  constructor({ request_id, chain_id, nonce, answers, reporter_required }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }) {
     this.request_id = request_id;
     this.chain_id = chain_id;
     this.nonce = nonce;
     this.answers = answers;
+    this.reporter_required = reporter_required;
     this.timestamp = near.blockTimestamp();
     this.reporter = near.signerAccountId();
   }
@@ -286,18 +293,21 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   abstract can_report(): boolean;
 
-  abstract report({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }): void;
-  _report({ request_id, chain_id, nonce, answers }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[] }): void {
-    assert(request_id == null, "request_id is null");
-    assert(chain_id == null, "chain_id is null");
-    assert(nonce == null, "nonce is null");
-    assert(answers == null || answers.length == 0, "answers is empty");
+  abstract report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }): void;
+  _report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }): void {
+    assert(request_id != null, "request_id is null");
+    assert(nonce != null, "nonce is null");
+    assert(answers != null && answers.length > 0, "answers is empty");
+
+    // todo check and parse chain id from request_id
+    const _chain_id = BigInt(0);
 
     const __report = new Report<Result>({
       request_id,
-      chain_id,
+      chain_id: _chain_id,
       nonce,
-      answers
+      answers,
+      reporter_required
     });
 
     const _deposit = near.attachedDeposit();

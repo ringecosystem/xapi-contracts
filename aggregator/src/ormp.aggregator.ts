@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, RequestId, Response, StakingConfig, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, StakingConfig, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -58,12 +58,12 @@ class OrmpAggregator extends Aggregator<string> {
 
   @call({ privateFunction: true })
   post_aggregate_callback({ request_id }: { request_id: RequestId; }): void {
-    this.post_aggregate_callback({request_id});
+    this.post_aggregate_callback({ request_id });
   }
 
   @call({ payableFunction: true })
-  report({ request_id, chain_id, nonce, answers }: { request_id: RequestId; chain_id: bigint; nonce: bigint; answers: Answer<string>[]; }): void {
-    super._report({ request_id, chain_id, nonce, answers });
+  report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId; nonce: bigint; answers: Answer<string>[]; reporter_required: ReporterRequired }): void {
+    super._report({ request_id, nonce, answers, reporter_required });
   }
 
   @call({ payableFunction: true })
