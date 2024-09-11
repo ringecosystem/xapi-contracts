@@ -35,14 +35,14 @@ struct AggregatorConfig {
 }
 
 struct ReporterRequired {
-    uint256 quorum;
-    uint256 threshold;
+    uint8 quorum;
+    uint8 threshold;
 }
 
 interface IXAPI {
     event RequestMade(
         uint256 indexed requestId,
-        string indexed aggregator,
+        string aggregator,
         string requestData,
         address indexed requester,
         ReporterRequired reporterRequired
