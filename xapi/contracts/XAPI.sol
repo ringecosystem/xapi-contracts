@@ -1,126 +1,123 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-struct Request {
-    // Currently, aggregators is deployed on Near. So use `string` type.
-    string aggregator;
-    // JSON string
-    string requestData;
-    address requester;
-    address callbackContract;
-    bytes4 callbackFunction;
-    bool fulfilled;
-    address fulfillAddress;
-    bytes result;
-    uint256 payment;
-    ReporterRequired reporterRequired;
-}
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "./interfaces/IXAPI.sol";
 
-struct AggregatorConfig {
-    address deriveAddress;
-    uint256 perRepoterFee;
-    uint256 publishFee;
-    bool suspended;
-}
-
-struct ReporterRequired {
-    uint256 quorum;
-    uint256 threshold;
-}
-
-contract XAPI {
-    event RequestMade(
-        uint256 indexed requestId,
-        string indexed aggregator,
-        string requestData,
-        address indexed requester,
-        ReporterRequired reporterRequired
-    );
-    event Fulfilled(uint256 indexed requestId, bytes response);
-
-    uint256 private requestCounter;
-    mapping(uint256 => Request) private requests;
+contract XAPI is IXAPI, Ownable2Step {
+    uint256 public requestCount;
+    mapping(uint256 => Request) public requests;
     mapping(string => AggregatorConfig) public aggregatorConfigs;
     mapping(address => uint256) public rewards;
 
-    constructor() {}
+    constructor() Ownable(msg.sender) {}
 
     function makeRequest(
         string memory requestData,
-        address callbackContract,
         bytes4 callbackFunction,
         string memory aggregator,
         ReporterRequired memory reporterRequired
     ) external payable returns (uint256) {
+        require(msg.sender != address(this), "CANT call self");
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[aggregator];
         require(aggregatorConfig.deriveAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
-        uint256 feeRequired = aggregatorConfig.perRepoterFee * reporterRequired.quorum + aggregatorConfig.publishFee;
+        uint256 feeRequired = aggregatorConfig.perReporterFee * reporterRequired.quorum + aggregatorConfig.publishFee;
         require(msg.value >= feeRequired, "Insufficient fees");
 
-        requestCounter++;
-        uint256 requestId = encodeRequestId(requestCounter);
+        requestCount++;
+        uint256 requestId = encodeRequestId(requestCount);
         requests[requestId] = Request({
             requester: msg.sender,
-            callbackContract: callbackContract,
+            callbackContract: msg.sender,
             callbackFunction: callbackFunction,
-            fulfilled: false,
+            status: RequestStatus.Pending,
             payment: msg.value,
             aggregator: aggregator,
             fulfillAddress: aggregatorConfig.deriveAddress,
             reporterRequired: reporterRequired,
-            result: new bytes(0),
+            response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
             requestData: requestData
         });
         emit RequestMade(requestId, aggregator, requestData, msg.sender, reporterRequired);
         return requestId;
     }
 
-    function fulfillRequest(uint256 requestId, bytes memory response) external {
+    function fulfill(uint256 requestId, ResponseData memory response) external {
         Request storage request = requests[requestId];
         require(decodeChainId(requestId) == block.chainid, "!chainId");
-        require(
-            keccak256(abi.encodePacked(msg.sender)) == keccak256(abi.encodePacked(request.fulfillAddress)),
-            "!Fulfill address"
-        );
-        require(!request.fulfilled, "Fulfilled");
+        require(msg.sender == request.fulfillAddress, "!Fulfill address");
+        require(request.status == RequestStatus.Pending, "!Pending");
 
-        request.fulfilled = true;
-        // todo parse result or entire response?
-        request.result = response;
-        emit Fulfilled(requestId, response);
+        request.response = response;
+
+        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[request.aggregator];
+        // Avoid changing the reward configuration after the request but before the response to obtain the contract balance
+        require(
+            aggregatorConfig.publishFee + aggregatorConfig.perReporterFee * response.reporters.length <= request.payment,
+            "Insufficient rewards"
+        );
+        for (uint256 i = 0; i < response.reporters.length; i++) {
+            rewards[response.reporters[i]] += aggregatorConfig.perReporterFee;
+        }
 
         (bool success,) =
             request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));
-        require(success, "!Callback");
 
-        // todo parse reporters from response, then distribute the rewards
-        // payable(msg.sender).transfer(request.payment);
+        request.status = success ? RequestStatus.Fulfilled : RequestStatus.CallbackFailed;
+
+        emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function encodeRequestId(uint256 counter) internal view returns (uint256) {
-        return (block.chainid << 192) | counter;
+    function retryFulfill(uint256 requestId) external {
+        Request storage request = requests[requestId];
+        require(request.status == RequestStatus.CallbackFailed, "!Callback failed request");
+        require(msg.sender == request.requester, "!Requester");
+
+        (bool success,) =
+            request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, request.response));
+
+        request.status = success ? RequestStatus.Fulfilled : RequestStatus.CallbackFailed;
+
+        emit Fulfilled(requestId, request.response, request.status);
+    }
+
+    function withdrawRewards() external {
+        uint256 amount = rewards[msg.sender];
+        require(amount > 0, "Insufficient rewards");
+
+        rewards[msg.sender] = 0;
+        emit RewardsWithdrawn(msg.sender, amount);
+
+        payable(msg.sender).transfer(amount);
+    }
+
+    function setAggregatorConfig(string memory aggregator, uint256 perReporterFee, uint256 publishFee)
+        external
+        onlyOwner
+    {
+        aggregatorConfigs[aggregator] = AggregatorConfig({
+            deriveAddress: msg.sender,
+            perReporterFee: perReporterFee,
+            publishFee: publishFee,
+            suspended: false
+        });
+
+        emit AggregatorConfigSet(aggregator, perReporterFee, publishFee);
+    }
+
+    function suspendAggregator(string memory aggregator) external onlyOwner {
+        aggregatorConfigs[aggregator].suspended = true;
+
+        emit AggregatorSuspended(aggregator);
+    }
+
+    function encodeRequestId(uint256 count) internal view returns (uint256) {
+        return (block.chainid << 192) | count;
     }
 
     function decodeChainId(uint256 requestId) public pure returns (uint256) {
         return requestId >> 192;
-    }
-
-    function decodeCounter(uint256 requestId) public pure returns (uint256) {
-        return requestId & ((1 << 192) - 1);
-    }
-
-    function setAggregatorConfig(string memory aggregator, uint256 perRepoterFee, uint256 publishFee) external {
-        aggregatorConfigs[aggregator] = AggregatorConfig({
-            deriveAddress: msg.sender,
-            perRepoterFee: perRepoterFee,
-            publishFee: publishFee,
-            suspended: false
-        });
-    }
-
-    function suspendAggregator(string memory aggregator) external {
-        aggregatorConfigs[aggregator].suspended = true;
     }
 }
