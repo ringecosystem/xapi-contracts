@@ -115,6 +115,8 @@ export class ReporterRequired {
 export class Response<Result> {
   request_id: RequestId;
   reporters: AccountId[];
+  // EVM address to distribute rewards
+  reporter_reward_addresses: string[];
   started_at: Timestamp;
   updated_at: Timestamp;
   status: RequestStatus;
@@ -138,16 +140,19 @@ export class Report<Result> {
   reporter: AccountId;
   timestamp: Timestamp;
   chain_id: bigint;
+  // Evm address to withdraw rewards on target chain 
+  reward_address: string;
   // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
   nonce: bigint;
   reporter_required: ReporterRequired;
   answers: Answer<Result>[];
-  constructor({ request_id, chain_id, nonce, answers, reporter_required }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }) {
+  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }) {
     this.request_id = request_id;
     this.chain_id = chain_id;
     this.nonce = nonce;
     this.answers = answers;
     this.reporter_required = reporter_required;
+    this.reward_address = reward_address;
     this.timestamp = near.blockTimestamp();
     this.reporter = near.signerAccountId();
   }
@@ -293,11 +298,12 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   abstract can_report(): boolean;
 
-  abstract report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }): void;
-  _report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired }): void {
+  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void;
+  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void {
     assert(request_id != null, "request_id is null");
     assert(nonce != null, "nonce is null");
     assert(answers != null && answers.length > 0, "answers is empty");
+    assert(reward_address != null, "reward_address is null");
 
     // todo check and parse chain id from request_id
     const _chain_id = BigInt(0);
@@ -307,7 +313,8 @@ export abstract class Aggregator<Result> extends ContractBase {
       chain_id: _chain_id,
       nonce,
       answers,
-      reporter_required
+      reporter_required,
+      reward_address
     });
 
     const _deposit = near.attachedDeposit();
@@ -387,6 +394,10 @@ export abstract class Aggregator<Result> extends ContractBase {
     return _values;
   }
 
+  // todo aggregator can withdraw rewards to the erc20 address
+
+  // todo aggregator can set aggregator config through mpc
+
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
   abstract _aggregate({ request_id }: { request_id: RequestId }): Result;
 
@@ -429,9 +440,12 @@ export abstract class Aggregator<Result> extends ContractBase {
       // todo check the promise_index
       const _result = this._promise_result({ promise_index: 0 });
     }
-
+    // todo filter invalid reporter
     _response.result = this._aggregate({ request_id });
     _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
+
+    _response.reporter_reward_addresses = Array.from(this.report_lookup.get(request_id).values())
+      .map(report => report.reward_address);
     _response.updated_at = near.blockTimestamp();
     _response.status = RequestStatus.DONE;
     this._publish({ request_id });
