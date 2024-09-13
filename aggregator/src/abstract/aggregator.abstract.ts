@@ -463,9 +463,14 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
     const function_call_data = encodeFunctionCall({
-      // todo target chain xapi fulfill
-      functionSignature: "set(uint256)",
-      params: [BigInt(7777)]
+      functionSignature: "fulfill(uint256,tuple(address[],bytes))",
+      params: [
+        BigInt(request_id),
+        [
+          _response.reporter_reward_addresses,
+          _response.result
+        ]
+      ]
     })
     _response.call_data = function_call_data;
     near.log("functionCallData", function_call_data);
