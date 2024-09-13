@@ -305,8 +305,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     assert(answers != null && answers.length > 0, "answers is empty");
     assert(reward_address != null, "reward_address is null");
 
-    // todo check and parse chain id from request_id
-    const _chain_id = BigInt(0);
+    const _chain_id = BigInt(request_id) >> BigInt(192);
 
     const __report = new Report<Result>({
       request_id,
