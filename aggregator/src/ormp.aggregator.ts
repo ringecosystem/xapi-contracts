@@ -62,8 +62,8 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({ payableFunction: true })
-  report({ request_id, nonce, answers, reporter_required }: { request_id: RequestId; nonce: bigint; answers: Answer<string>[]; reporter_required: ReporterRequired }): void {
-    super._report({ request_id, nonce, answers, reporter_required });
+  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: bigint; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): void {
+    super._report({ request_id, nonce, answers, reporter_required, reward_address });
   }
 
   @call({ payableFunction: true })

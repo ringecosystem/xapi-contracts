@@ -61,6 +61,7 @@ contract XAPI is IXAPI, Ownable2Step {
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += aggregatorConfig.perReporterFee;
         }
+        rewards[aggregatorConfig.deriveAddress] += aggregatorConfig.publishFee;
 
         (bool success,) =
             request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));
@@ -83,14 +84,14 @@ contract XAPI is IXAPI, Ownable2Step {
         emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function withdrawRewards() external {
+    function withdrawRewards(address receiver) external {
         uint256 amount = rewards[msg.sender];
         require(amount > 0, "Insufficient rewards");
 
         rewards[msg.sender] = 0;
-        emit RewardsWithdrawn(msg.sender, amount);
+        emit RewardsWithdrawn(msg.sender, receiver, amount);
 
-        payable(msg.sender).transfer(amount);
+        payable(receiver).transfer(amount);
     }
 
     function setAggregatorConfig(string memory aggregator, uint256 perReporterFee, uint256 publishFee)

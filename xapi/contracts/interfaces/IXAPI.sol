@@ -48,7 +48,7 @@ interface IXAPI {
         ReporterRequired reporterRequired
     );
     event Fulfilled(uint256 indexed requestId, ResponseData response, RequestStatus indexed status);
-    event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
+    event RewardsWithdrawn(address indexed withdrawer, address indexed receiver, uint256 amount);
     event AggregatorConfigSet(string indexed aggregator, uint256 perReporterFee, uint256 publishFee);
     event AggregatorSuspended(string indexed aggregator);
 
@@ -63,7 +63,7 @@ interface IXAPI {
 
     function retryFulfill(uint256 requestId) external;
 
-    function withdrawRewards() external;
+    function withdrawRewards(address receiver) external;
 
     function setAggregatorConfig(string memory aggregator, uint256 perReporterFee, uint256 publishFee) external;
 
