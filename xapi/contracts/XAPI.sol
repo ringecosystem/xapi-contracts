@@ -20,7 +20,7 @@ contract XAPI is IXAPI, Ownable2Step {
     ) external payable returns (uint256) {
         require(msg.sender != address(this), "CANT call self");
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[aggregator];
-        require(aggregatorConfig.deriveAddress != address(0), "!Aggregator");
+        require(aggregatorConfig.fulfillAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
         uint256 feeRequired = aggregatorConfig.perReporterFee * reporterRequired.quorum + aggregatorConfig.publishFee;
@@ -35,7 +35,7 @@ contract XAPI is IXAPI, Ownable2Step {
             status: RequestStatus.Pending,
             payment: msg.value,
             aggregator: aggregator,
-            fulfillAddress: aggregatorConfig.deriveAddress,
+            fulfillAddress: aggregatorConfig.fulfillAddress,
             reporterRequired: reporterRequired,
             response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
             requestData: requestData
@@ -61,7 +61,7 @@ contract XAPI is IXAPI, Ownable2Step {
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += aggregatorConfig.perReporterFee;
         }
-        rewards[aggregatorConfig.deriveAddress] += aggregatorConfig.publishFee;
+        rewards[aggregatorConfig.fulfillAddress] += aggregatorConfig.publishFee;
 
         (bool success,) =
             request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));
@@ -84,28 +84,32 @@ contract XAPI is IXAPI, Ownable2Step {
         emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function withdrawRewards(address receiver) external {
+    function withdrawRewards() external {
         uint256 amount = rewards[msg.sender];
         require(amount > 0, "Insufficient rewards");
 
         rewards[msg.sender] = 0;
-        emit RewardsWithdrawn(msg.sender, receiver, amount);
+        emit RewardsWithdrawn(msg.sender, amount);
 
-        payable(receiver).transfer(amount);
+        payable(msg.sender).transfer(amount);
     }
 
-    function setAggregatorConfig(string memory aggregator, uint256 perReporterFee, uint256 publishFee)
-        external
-        onlyOwner
-    {
+    function setAggregatorConfig(
+        string memory aggregator,
+        uint256 perReporterFee,
+        uint256 publishFee,
+        address fulfillAddress,
+        address rewardAddress
+    ) external onlyOwner {
         aggregatorConfigs[aggregator] = AggregatorConfig({
-            deriveAddress: msg.sender,
+            fulfillAddress: fulfillAddress,
             perReporterFee: perReporterFee,
             publishFee: publishFee,
+            rewardAddress: rewardAddress,
             suspended: false
         });
 
-        emit AggregatorConfigSet(aggregator, perReporterFee, publishFee);
+        emit AggregatorConfigSet(aggregator, perReporterFee, publishFee, fulfillAddress, rewardAddress);
     }
 
     function suspendAggregator(string memory aggregator) external onlyOwner {

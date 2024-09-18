@@ -107,28 +107,6 @@ class PublishEvent extends Nep297Event {
   }
 }
 
-class WithdrawData {
-  chain_id: bigint
-  receiver: string
-  nonce: bigint
-  chain_config: PublishChainConfig;
-  signature: string;
-
-  constructor({ chain_id, receiver, nonce, chain_config, signature }: { chain_id: bigint, receiver: string, nonce: bigint, chain_config: PublishChainConfig, signature: string }) {
-    this.chain_id = chain_id;
-    this.receiver = receiver;
-    this.nonce = nonce;
-    this.chain_config = chain_config;
-    this.signature = signature;
-  }
-}
-
-class WithdrawPublishRewardsEvent extends Nep297Event {
-  constructor(data: WithdrawData) {
-    super("WithdrawPublishRewards", data);
-  }
-}
-
 export class ReporterRequired {
   quorum: number;
   threshold: number;
@@ -546,75 +524,6 @@ export abstract class Aggregator<Result> extends ContractBase {
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
       new PublishEvent(new PublishData({
         request_id, response: _response, chain_config: _chain_config, signature: _result.result
-      })).emit();
-    }
-  }
-
-  // aggregator can withdraw rewards to the erc20 address
-  abstract withdraw_publish_rewards({ chain_id, receiver, nonce }: { chain_id: bigint, receiver: string, nonce: bigint }): NearPromise;
-  _withdraw_publish_rewards({ chain_id, receiver, nonce }: { chain_id: bigint, receiver: string, nonce: bigint }): NearPromise {
-    this._assert_operator();
-
-    const _chain_config = this.publish_chain_config_lookup.get(chain_id.toString());
-    assert(_chain_config != null, `Chain config for ${chain_id} does not exist`);
-
-    // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
-    const function_call_data = encodeFunctionCall({
-      functionSignature: "withdrawRewards(address)",
-      params: [
-        receiver
-      ]
-    })
-
-    const function_call_data_bytes = hexToBytes(function_call_data);
-    near.log("bytes functionCallData", Array.from(function_call_data_bytes));
-
-    const payload = ethereumTransaction({
-      chainId: chain_id,
-      nonce: nonce,
-      maxPriorityFeePerGas: _chain_config.max_priority_fee_per_gas,
-      maxFeePerGas: _chain_config.max_fee_per_gas,
-      gasLimit: _chain_config.gas_limit,
-      to: _chain_config.xapi_address,
-      value: BigInt(0),
-      data: function_call_data_bytes,
-      accessList: []
-    });
-    const payload_arr = Array.from(payload);
-    near.log("payload_arr", payload_arr);
-
-    const mpc_args = {
-      "request": {
-        "key_version": 0,
-        "payload": payload_arr,
-        "path": "test"
-      }
-    }
-    const promise = NearPromise.new(this.mpc_config.mpc_contract)
-      // 1 NEAR to request signature, the surplus will be refunded
-      .functionCall("sign", JSON.stringify(mpc_args), BigInt(this.mpc_config.attached_balance), ONE_TERA_GAS * BigInt(250))
-      .then(
-        NearPromise.new(near.currentAccountId())
-          .functionCall(
-            "withdraw_publish_rewards_callback",
-            JSON.stringify({ chain_id, receiver, nonce }),
-            BigInt(0),
-            // Beware of the 300T cap with mpc gas
-            BigInt(ONE_TERA_GAS * BigInt(15))
-          )
-      );
-
-    return promise.asReturn();
-  }
-
-  abstract withdraw_publish_rewards_callback({ chain_id, receiver, nonce }: { chain_id: bigint, receiver: string, nonce: bigint }): void
-  _withdraw_publish_rewards_callback({ chain_id, receiver, nonce }: { chain_id: bigint, receiver: string, nonce: bigint }): void {
-    const _result = this._promise_result({ promise_index: 0 });
-    near.log(`withdraw_publish_rewards_callback ${chain_id}, ${receiver}, ${nonce}, ${_result.success}, ${_result.result}`);
-    if (_result.success) {
-      const _chain_config = this.publish_chain_config_lookup.get(chain_id.toString());
-      new WithdrawPublishRewardsEvent(new WithdrawData({
-        chain_id, receiver, nonce, chain_config: _chain_config, signature: _result.result
       })).emit();
     }
   }
