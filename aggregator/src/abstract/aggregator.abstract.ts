@@ -127,6 +127,7 @@ export class Response<Result> {
   result: Result;
   nonce: bigint;
   chain_id: bigint;
+  reporter_required: ReporterRequired
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
@@ -158,17 +159,6 @@ export class Report<Result> {
   }
 }
 
-export class StakingConfig {
-  staking_contract: AccountId;
-  // Top n reporters can report data.
-  top_threshold: number;
-
-  constructor({ staking_contract, top_threshold }: { staking_contract: AccountId, top_threshold: number }) {
-    this.staking_contract = staking_contract;
-    this.top_threshold = top_threshold;
-  }
-}
-
 export class MpcConfig {
   mpc_contract: AccountId;
   // Deposit yocto to request mpc, the surplus will be refunded to this contract.
@@ -187,7 +177,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   mpc_config: MpcConfig;
   // !! Setting this to null will not check the reporter's staking before aggregating.
-  staking_config: StakingConfig;
+  staking_contract: AccountId;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -198,11 +188,11 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, timeout, mpc_config, staking_config, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, staking_config: StakingConfig, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, timeout, mpc_config, staking_contract, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
     this.mpc_config = mpc_config;
-    this.staking_config = staking_config;
+    this.staking_contract = staking_contract;
 
     if (!timeout) {
       // Default timeout: 2 hours
@@ -238,15 +228,15 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.mpc_config;
   }
 
-  abstract set_staking_config(staking_config: StakingConfig): void;
-  _set_staking_config(staking_config: StakingConfig): void {
+  abstract set_staking_contract({ staking_contract }: { staking_contract: AccountId }): void;
+  _set_staking_contract({ staking_contract }: { staking_contract: AccountId }): void {
     this._assert_operator();
-    this.staking_config = staking_config;
+    this.staking_contract = staking_contract;
   }
 
-  abstract get_staking_config(): StakingConfig;
-  _get_staking_config(): StakingConfig {
-    return this.staking_config;
+  abstract get_staking_contract(): AccountId;
+  _get_staking_contract(): AccountId {
+    return this.staking_contract;
   }
 
   abstract set_publish_chain_config(publis_chain_config: PublishChainConfig): void;
@@ -403,10 +393,10 @@ export abstract class Aggregator<Result> extends ContractBase {
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      if (this.staking_config && this.staking_config.staking_contract) {
+      if (this.staking_contract) {
         // todo Check staking before aggregating
-        const promise = NearPromise.new(this.staking_config.staking_contract)
-          .functionCall("top_list", JSON.stringify({ threshold: this.staking_config.top_threshold }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+        const promise = NearPromise.new(this.staking_contract)
+          .functionCall("get_top_staked", JSON.stringify({ top: _response.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
           .then(
             NearPromise.new(near.currentAccountId())
               .functionCall(
@@ -429,7 +419,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   _post_aggregate({ request_id }: { request_id: RequestId }): void {
     const _response = this.response_lookup.get(request_id);
 
-    if (this.staking_config && this.staking_config.staking_contract) {
+    if (this.staking_contract) {
       const _reporters = _response.reporters;
       // todo check _reporters is in the top list
       // todo check the promise_index

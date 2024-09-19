@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, StakingConfig, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -12,7 +12,7 @@ class OrmpAggregator extends Aggregator<string> {
       description: "ORMP Aggregator", timeout: null,
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24) }),
       // todo staking contract
-      staking_config: new StakingConfig({ staking_contract: "", top_threshold: 10 }),
+      staking_contract: "",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -92,8 +92,8 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({})
-  set_staking_config(staking_config: StakingConfig): void {
-    super._set_staking_config(staking_config);
+  set_staking_contract({ staking_contract }: { staking_contract: AccountId }): void {
+    super._set_staking_contract({ staking_contract });
   }
 
   /// Views
@@ -107,8 +107,8 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_mpc_config();
   }
   @view({})
-  get_staking_config(): StakingConfig {
-    return super._get_staking_config();
+  get_staking_contract(): AccountId {
+    return super._get_staking_contract();
   }
   @view({})
   get_report({ request_id, reporter_account }: { request_id: RequestId; reporter_account: AccountId; }): Report<string> {
