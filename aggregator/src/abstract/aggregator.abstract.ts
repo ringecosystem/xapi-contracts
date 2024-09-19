@@ -403,7 +403,7 @@ export abstract class Aggregator<Result> extends ContractBase {
           NearPromise.new(near.currentAccountId())
             .functionCall(
               "post_aggregate_callback",
-              JSON.stringify({ request_id: request_id }),
+              JSON.stringify({ request_id: request_id, promise_index: 0 }),
               BigInt(0),
               // Beware of the 300T cap with mpc gas
               BigInt(ONE_TERA_GAS * BigInt(15))
@@ -414,11 +414,10 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  abstract post_aggregate_callback({ request_id }: { request_id: RequestId }): void;
-  _post_aggregate({ request_id }: { request_id: RequestId }): void {
-    // todo check the promise_index
-    const _result = this._promise_result({ promise_index: 0 });
-    near.log(`post_aggregate_callback ${request_id}, ${_result.success}, ${_result.result}`);
+  abstract post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void;
+  _post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
+    const _result = this._promise_result({ promise_index: promise_index });
+    near.log(`post_aggregate_callback ${request_id}, ${_result.success}, ${_result.result} promise_index: ${promise_index}`);
     const _top_staked: Staked[] = JSON.parse(_result.result);
 
     this._aggregate({ request_id, top_staked: _top_staked });
@@ -427,13 +426,13 @@ export abstract class Aggregator<Result> extends ContractBase {
     if (_response.result) {
       _response.updated_at = near.blockTimestamp();
       _response.status = RequestStatus.DONE;
-      this._publish({ request_id });
+      this._publish({ request_id, promise_index: 1 });
     }
   }
 
   // Use this if autopublish fails due to mpc failure. Any safe problem??
   abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
-  _publish({ request_id }: { request_id: RequestId }): NearPromise {
+  _publish({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): NearPromise {
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
 
@@ -489,7 +488,7 @@ export abstract class Aggregator<Result> extends ContractBase {
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "publish_callback",
-            JSON.stringify({ request_id: request_id }),
+            JSON.stringify({ request_id: request_id, promise_index: promise_index }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
             BigInt(ONE_TERA_GAS * BigInt(15))
@@ -499,10 +498,10 @@ export abstract class Aggregator<Result> extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract publish_callback({ request_id }: { request_id: RequestId }): void
-  _publish_callback({ request_id }: { request_id: RequestId }): void {
-    const _result = this._promise_result({ promise_index: 0 });
-    near.log(`publish call back ${request_id}, ${_result.success}, ${_result.result}`);
+  abstract publish_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void
+  _publish_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
+    const _result = this._promise_result({ promise_index: promise_index });
+    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}, promise_index: ${promise_index}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
       _response.status = RequestStatus.PUBLISHED;

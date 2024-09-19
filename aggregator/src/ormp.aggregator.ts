@@ -87,12 +87,12 @@ class OrmpAggregator extends Aggregator<string> {
 
   @call({})
   publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
-    return this._publish({ request_id });
+    return this._publish({ request_id, promise_index: 0 });
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id }: { request_id: RequestId; }): void {
-    super._publish_callback({ request_id });
+  publish_callback({ request_id, promise_index }: { request_id: RequestId; promise_index: number; }): void {
+    super._publish_callback({ request_id, promise_index });
   }
 
   @call({ privateFunction: true })
