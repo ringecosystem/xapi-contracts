@@ -170,13 +170,20 @@ export class MpcConfig {
   }
 }
 
+export class Staked {
+  amount: string
+  account_id: AccountId
+}
+
+// Default timeout: 2 hours
+const DEFAULT_TIME_OUT = BigInt(18000);
+
 export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   timeout: Timestamp;
 
   mpc_config: MpcConfig;
-  // !! Setting this to null will not check the reporter's staking before aggregating.
   staking_contract: AccountId;
 
   // key: data_source name
@@ -195,8 +202,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     this.staking_contract = staking_contract;
 
     if (!timeout) {
-      // Default timeout: 2 hours
-      this.timeout = BigInt(18000);
+      this.timeout = DEFAULT_TIME_OUT;
     } else {
       this.timeout = timeout;
     }
@@ -286,8 +292,6 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.response_lookup.get(request_id);
   }
 
-  abstract can_report(): boolean;
-
   abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void;
   _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void {
     assert(request_id != null, "request_id is null");
@@ -312,8 +316,6 @@ export abstract class Aggregator<Result> extends ContractBase {
       _deposit >= _required_deposit,
       `Insufficient deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
-
-    assert(this.can_report(), "Reporting requirements not met.");
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -384,7 +386,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   }
 
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
-  abstract _aggregate({ request_id }: { request_id: RequestId }): Result;
+  abstract _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean;
 
   _try_aggregate({ request_id }: { request_id: RequestId }): NearPromise {
     if (this._can_aggregate({ request_id })) {
@@ -393,47 +395,40 @@ export abstract class Aggregator<Result> extends ContractBase {
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
-      if (this.staking_contract) {
-        // todo Check staking before aggregating
-        const promise = NearPromise.new(this.staking_contract)
-          .functionCall("get_top_staked", JSON.stringify({ top: _response.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
-          .then(
-            NearPromise.new(near.currentAccountId())
-              .functionCall(
-                "post_aggregate_callback",
-                JSON.stringify({ request_id: request_id }),
-                BigInt(0),
-                // Beware of the 300T cap with mpc gas
-                BigInt(ONE_TERA_GAS * BigInt(15))
-              )
-          );
+      assert(this.staking_contract != null && this.staking_contract != "", "Staking contract cannot be null");
+      // Check staking before aggregating
+      const promise = NearPromise.new(this.staking_contract)
+        .functionCall("get_top_staked", JSON.stringify({ top: _response.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+        .then(
+          NearPromise.new(near.currentAccountId())
+            .functionCall(
+              "post_aggregate_callback",
+              JSON.stringify({ request_id: request_id }),
+              BigInt(0),
+              // Beware of the 300T cap with mpc gas
+              BigInt(ONE_TERA_GAS * BigInt(15))
+            )
+        );
 
-        return promise.asReturn();
-      } else {
-        this._post_aggregate({ request_id });
-      }
+      return promise.asReturn();
     }
   }
 
   abstract post_aggregate_callback({ request_id }: { request_id: RequestId }): void;
   _post_aggregate({ request_id }: { request_id: RequestId }): void {
+    // todo check the promise_index
+    const _result = this._promise_result({ promise_index: 0 });
+    near.log(`post_aggregate_callback ${request_id}, ${_result.success}, ${_result.result}`);
+    const _top_staked: Staked[] = JSON.parse(_result.result);
+
+    this._aggregate({ request_id, top_staked: _top_staked });
+
     const _response = this.response_lookup.get(request_id);
-
-    if (this.staking_contract) {
-      const _reporters = _response.reporters;
-      // todo check _reporters is in the top list
-      // todo check the promise_index
-      const _result = this._promise_result({ promise_index: 0 });
+    if (_response.result) {
+      _response.updated_at = near.blockTimestamp();
+      _response.status = RequestStatus.DONE;
+      this._publish({ request_id });
     }
-    // todo filter invalid reporter
-    _response.result = this._aggregate({ request_id });
-    _response.reporters = Array.from(this.report_lookup.get(request_id).keys());
-
-    _response.reporter_reward_addresses = Array.from(this.report_lookup.get(request_id).values())
-      .map(report => report.reward_address);
-    _response.updated_at = near.blockTimestamp();
-    _response.status = RequestStatus.DONE;
-    this._publish({ request_id });
   }
 
   // Use this if autopublish fails due to mpc failure. Any safe problem??
@@ -531,7 +526,8 @@ export abstract class Aggregator<Result> extends ContractBase {
     try {
       result = near.promiseResult(promise_index);
       success = true;
-    } catch {
+    } catch (error) {
+      near.log(`Error retrieving promise result: ${error}, index: ${promise_index}`);
       result = undefined;
       success = false;
     }

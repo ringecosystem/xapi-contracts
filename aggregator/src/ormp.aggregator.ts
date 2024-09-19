@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -11,8 +11,8 @@ class OrmpAggregator extends Aggregator<string> {
     super({
       description: "ORMP Aggregator", timeout: null,
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24) }),
-      // todo staking contract
-      staking_contract: "",
+      // todo update staking contract
+      staking_contract: "staking.guantong.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -21,21 +21,60 @@ class OrmpAggregator extends Aggregator<string> {
     });
   }
 
-  @view({})
-  can_report(): boolean {
-    throw new Error("Method not implemented.");
-  }
-
   _assert_operator(): void {
     assert(near.signerAccountId() == near.currentAccountId(), `Permission denied, ${near.signerAccountId()} != ${near.currentAccountId()}`);
   }
 
   _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
-    throw new Error("Method not implemented.");
+    return Array.from(this.report_lookup.get(request_id).keys()).length >= 3;
   }
 
-  _aggregate({ request_id }: { request_id: RequestId }): string {
-    throw new Error("Method not implemented.");
+  _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
+    // filter invalid reporter
+    const _reporters = Array.from(this.report_lookup.get(request_id).keys());
+    const _valid_reporters = _reporters.filter(reporter =>
+      top_staked.some(staked => staked.account_id === reporter)
+    );
+    const _reports = this.report_lookup.get(request_id);
+    const _valid_reports = [];
+    for (const reporter of _valid_reporters) {
+      _valid_reports.push(_reports.get(reporter));
+    }
+
+    const answer_count: { [key: string]: { count: number; report: Report<string> } } = {};
+    _valid_reports.forEach(report => {
+      const key = `${report.result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
+      if (!answer_count[key]) {
+        answer_count[key] = { count: 0, report };
+      }
+      answer_count[key].count++;
+    });
+
+    const most_common_key = Object.keys(answer_count).reduce((a, b) =>
+      answer_count[a].count > answer_count[b].count ? a : b
+    );
+    const [result, nonce, chain_id, quorum, threshold] = most_common_key.split('-');
+    assert(_valid_reporters.length > Number(quorum), `Quorum: required ${quorum}, but got ${_valid_reporters.length}`);
+    assert(answer_count[most_common_key].count > Number(threshold), `Threshold: required ${threshold}, but got ${answer_count[most_common_key].count}`)
+
+
+    const _response = this.response_lookup.get(request_id);
+
+    _response.reporter_reward_addresses = _valid_reports
+      .filter(report => {
+        const key = `${report.result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
+        return key === most_common_key;
+      })
+      .map(report => report.reward_address);
+
+    _response.result = result;
+    _response.nonce = BigInt(nonce);
+    _response.chain_id = BigInt(chain_id);
+    _response.reporter_required = {
+      quorum: Number(quorum),
+      threshold: Number(threshold)
+    }
+    return true;
   }
 
   @migrate({})
