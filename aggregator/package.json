@@ -12,7 +12,8 @@
     "storage": "near contract view-storage test.guantong.testnet all as-json network-config testnet now",
     "clear": "near contract call-function as-transaction test.guantong.testnet _clear_state json-args {} prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as test.guantong.testnet network-config testnet sign-with-legacy-keychain send",
     "test": "$npm_execpath run build && ava -- ./build/ormp_aggregator.wasm",
-    "publish-test": "near contract call-function as-transaction test.guantong.testnet publish json-args {} prepaid-gas '300.0 Tgas' attached-deposit '0 NEAR' sign-as test.guantong.testnet network-config testnet sign-with-legacy-keychain send"
+    "publish-test": "near contract call-function as-transaction test.guantong.testnet publish json-args {} prepaid-gas '300.0 Tgas' attached-deposit '0 NEAR' sign-as test.guantong.testnet network-config testnet sign-with-legacy-keychain send",
+    "ava": "ava"
   },
   "dependencies": {
     "near-sdk-js": "2.0.0"

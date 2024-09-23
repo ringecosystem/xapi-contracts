@@ -18,7 +18,7 @@ test.beforeEach(async t => {
 
   // Get wasm file path from package.json test script in folder above
   await contract.deploy(
-    process.argv[2],
+    'build/ormp_aggregator.wasm',
   );
 
   // Save state for test runs, it is unique for each test
@@ -31,15 +31,44 @@ test.afterEach.always(async (t) => {
   });
 });
 
-test('returns the default greeting', async (t) => {
+test('add data source', async (t) => {
   const { contract } = t.context.accounts;
-  const greeting = await contract.view('get_greeting', {});
-  t.is(greeting, 'Hello');
+  const dataSource = {
+    name: 'test-source',
+    url: 'https://example.com',
+    method: 'GET',
+    headers: {},
+    body_json: {},
+    result_path: 'data.result'
+  };
+
+  await contract.call(contract, 'add_data_source', dataSource);
+
+  const dataSources = await contract.view('get_data_sources', {});
+  t.is(dataSources.length, 1);
+  t.is(dataSources[0].name, 'test-source');
 });
 
-test('changes the greeting', async (t) => {
-  const { root, contract } = t.context.accounts;
-  await root.call(contract, 'set_greeting', { greeting: 'Howdy' });
-  const greeting = await contract.view('get_greeting', {});
-  t.is(greeting, 'Howdy');
+test('report data', async (t) => {
+  const { contract, root } = t.context.accounts;
+  const requestId = '6277101735386680763835789423207666416102355444464034512896';
+  const nonce = '1';
+  const answers = [{ data_source_name: 'test-source', result: 'test-result' }];
+  const reporterRequired = { quorum: 3, threshold: 2 };
+  const rewardAddress = 'reward-address';
+
+  await contract.call(root, 'report',
+    { request_id: requestId, nonce, answers, reporter_required: reporterRequired, reward_address: rewardAddress });
+
+  const response = await contract.view('get_response', { request_id: requestId });
+  console.log("response", response);
+  t.is(response.result, 'test-result');
+});
+
+test('publish external', async (t) => {
+  const { contract } = t.context.accounts;
+  const requestId = 'request-1';
+
+  const result = await contract.call(contract, 'publish_external', { request_id: requestId });
+  t.truthy(result);
 });

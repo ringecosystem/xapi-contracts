@@ -377,12 +377,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   abstract get_data_sources(): DataSource[]
   _get_data_sources(): DataSource[] {
-    const _keys = this.data_sources._keys;
-    const _values: DataSource[] = [];
-    for (let i = 0; i < _keys.length; i++) {
-      _values.push(this.data_sources[i]);
-    }
-    return _values;
+    return this.data_sources.toArray().map(entry => entry[1]);
   }
 
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
