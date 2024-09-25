@@ -50,8 +50,7 @@ class Staking extends ContractBase implements FungibleReceiver {
     }));
     this.total_staked = BigInt(0);
     this.staked_map = new UnorderedMap("staking");
-    // todo use eth for testing. Update to xRING
-    this.token_account = "eth.sepolia.testnet";
+    this.token_account = "3beb2cf5c2c050bc575350671aa5f06e589386e8.factory.sepolia.testnet";
     this.unlock_period = BigInt(0);
   }
 
@@ -148,7 +147,7 @@ class Staking extends ContractBase implements FungibleReceiver {
 
   // views
 
-  @call({})
+  @view({})
   get_top_staked({ top }: { top: number }) {
     const all_stakers = [];
     // near contract call-function as-transaction stake.guantong.testnet get_top_staked json-args '{"top":3}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as guantong.testnet network-config testnet sign-with-legacy-keychain send
@@ -179,6 +178,11 @@ class Staking extends ContractBase implements FungibleReceiver {
   @view({})
   get_total_staked() {
     return this.total_staked.toString();
+  }
+
+  @view({})
+  get_token_account() {
+    return this.token_account;
   }
 
   @view({})
