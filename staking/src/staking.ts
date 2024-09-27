@@ -28,12 +28,24 @@ class UnlockEvent extends Nep297Event {
     super("Unlock", data)
   }
 }
+
 class WithdrawEvent extends Nep297Event {
   constructor(data: { account_id: AccountId, amount: string }) {
     super("Withdraw", data)
   }
 }
 
+class SlashEvent extends Nep297Event {
+  constructor(data: { account_id: AccountId, amount: string }) {
+    super("Slash", data);
+  }
+}
+
+class UnlockPeriodUpdateEvent extends Nep297Event {
+  constructor(data: { period: string }) {
+    super("UnlockPeriodUpdate", data);
+  }
+}
 
 @NearBindgen({})
 class Staking extends ContractBase implements FungibleReceiver {
@@ -51,6 +63,7 @@ class Staking extends ContractBase implements FungibleReceiver {
     this.total_staked = BigInt(0);
     this.staked_map = new UnorderedMap("staking");
     this.token_account = "3beb2cf5c2c050bc575350671aa5f06e589386e8.factory.sepolia.testnet";
+    // todo update
     this.unlock_period = BigInt(0);
   }
 
@@ -71,9 +84,10 @@ class Staking extends ContractBase implements FungibleReceiver {
 
     assert(staked && _staked_amount >= _amount, "Insufficient staked");
 
-    near.log(`${account_id} unstaking ${amount}`);
+    near.log(`${account_id} unlock ${amount}`);
 
     _staked_amount -= _amount;
+    staked.amount = _staked_amount.toString();
     this.total_staked -= _amount;
 
     const _unlock_time = near.blockTimestamp() + this.unlock_period;
@@ -92,7 +106,7 @@ class Staking extends ContractBase implements FungibleReceiver {
     assert(near.predecessorAccountId() == this.token_account && msg == "Stake", `Require ${this.token_account} and msg Stake, Current: ${near.predecessorAccountId()}, msg: ${msg}`);
 
     const _amount = BigInt(amount);
-    let staked = this.staked_map.get(sender_id) || { amount: "0", unlocking: [], account_id: near.signerAccountId() };
+    let staked = this.staked_map.get(sender_id) || { amount: "0", unlocking: [], account_id: sender_id };
     let _staked_amount = BigInt(staked.amount);
     _staked_amount += _amount;
     staked.amount = _staked_amount.toString();
@@ -106,11 +120,13 @@ class Staking extends ContractBase implements FungibleReceiver {
   }
 
   @call({})
-  withdraw() {
+  withdraw(): NearPromise {
     const account_id = near.signerAccountId();
+    near.log(`Staked map, ${JSON.stringify(this.staked_map)}`)
     let staked = this.staked_map.get(account_id);
 
-    assert(staked && staked.unlocking.length > 0, "No tokens to withdraw")
+    near.log(`Staked data: ${JSON.stringify(staked)}`);
+    assert(staked && staked.unlocking != null && staked.unlocking.length > 0, "No tokens to withdraw")
 
     const currentTime = BigInt(near.blockTimestamp());
     let total_withdraw = BigInt(0);
@@ -145,6 +161,50 @@ class Staking extends ContractBase implements FungibleReceiver {
     return promise.asReturn();
   }
 
+  @call({})
+  slash({ account_id, amount }: { account_id: AccountId, amount: string }) {
+    // todo multisig?
+    assert(near.signerAccountId() === near.currentAccountId(), "Only the owner can slash");
+    const penalty_amount = BigInt(amount);
+
+    let staked = this.staked_map.get(account_id);
+    assert(staked, "Account not found");
+
+    let staked_amount = BigInt(staked.amount);
+    if (staked_amount >= penalty_amount) {
+      staked.amount = (staked_amount - penalty_amount).toString();
+    } else {
+      let remaining_penalty = penalty_amount - staked_amount;
+      staked.amount = "0";
+
+      for (let i = 0; i < staked.unlocking.length; i++) {
+        if (remaining_penalty <= 0) break;
+        let unlock_amount = BigInt(staked.unlocking[i].amount);
+        if (unlock_amount <= remaining_penalty) {
+          remaining_penalty -= unlock_amount;
+          staked.unlocking.splice(i, 1);
+          i--;
+        } else {
+          staked.unlocking[i].amount = (unlock_amount - remaining_penalty).toString();
+          remaining_penalty = BigInt(0);
+        }
+      }
+      assert(remaining_penalty == BigInt(0), "Insufficient staked amount to slash");
+    }
+
+    this.staked_map.set(account_id, staked);
+    new SlashEvent({ account_id, amount }).emit();
+  }
+
+  @call({})
+  set_unlock_period({ period }: { period: string }) {
+    // todo check
+    assert(near.signerAccountId() == near.currentAccountId(), "Require owner");
+    assert(BigInt(period) > 0, "Period should greater than 0");
+    this.unlock_period = BigInt(period);
+    new UnlockPeriodUpdateEvent({ period }).emit();
+  }
+
   // views
 
   @view({})
@@ -155,7 +215,7 @@ class Staking extends ContractBase implements FungibleReceiver {
 
     for (let i = 0; i < _staked_array.length; i++) {
       const _staked = _staked_array[i];
-      all_stakers.push({ account_id: _staked[1].account_id, amount: _staked[1].amount })
+      all_stakers.push({ account_id: _staked[1].account_id, amount: BigInt(_staked[1].amount) })
     }
 
     all_stakers.sort((a, b) => {
@@ -172,12 +232,12 @@ class Staking extends ContractBase implements FungibleReceiver {
 
   @view({})
   get_staked({ account_id }) {
-    return this.staked_map.get(account_id) || { amount: BigInt(0) };
+    return this.staked_map.get(account_id) || { amount: "0" };
   }
 
   @view({})
   get_total_staked() {
-    return this.total_staked.toString();
+    return this.total_staked;
   }
 
   @view({})

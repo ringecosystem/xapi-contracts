@@ -13,7 +13,8 @@
     "unstake": "near contract call-function as-transaction stake.guantong.testnet unstake json-args '{\"amount\":\"100\"}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as test.guantong.testnet network-config testnet sign-with-legacy-keychain send",
     "total-stake": "near contract call-function as-read-only stake.guantong.testnet get_total_staked json-args {} network-config testnet now",
     "withdraw": "near contract call-function as-transaction stake.guantong.testnet withdraw json-args '{}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as test.guantong.testnet network-config testnet sign-with-legacy-keychain send",
-    "top": "near contract call-function as-read-only stake.guantong.testnet get_top_staked json-args '{\"top\":3}' network-config testnet now"
+    "top": "near contract call-function as-read-only stake.guantong.testnet get_top_staked json-args '{\"top\":3}' network-config testnet now",
+    "ava": "ava"
   },
   "dependencies": {
     "near-sdk-js": "^2.0.0"
