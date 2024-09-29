@@ -4,7 +4,8 @@ import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseI
 import { sizeOf } from "../lib/helper";
 
 export type RequestId = string;
-export type Timestamp = bigint;
+export type Timestamp = string;
+export type ChainId = string;
 
 export enum RequestStatus {
   FETCHING,
@@ -19,13 +20,13 @@ export enum RequestMethod {
 }
 
 export class PublishChainConfig {
-  chain_id: bigint;
+  chain_id: ChainId;
   xapi_address: string;
-  gas_limit: bigint;
-  max_fee_per_gas: bigint;
-  max_priority_fee_per_gas: bigint;
+  gas_limit: string;
+  max_fee_per_gas: string;
+  max_priority_fee_per_gas: string;
 
-  constructor({ chain_id, xapi_address, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { chain_id: bigint, xapi_address: string, gas_limit: bigint, max_fee_per_gas: bigint, max_priority_fee_per_gas: bigint }) {
+  constructor({ chain_id, xapi_address, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { chain_id: ChainId, xapi_address: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.gas_limit = gas_limit;
@@ -125,13 +126,13 @@ export class Response<Result> {
 
   // 👇 These values should be aggregated from reporter's answer
   result: Result;
-  nonce: bigint;
-  chain_id: bigint;
+  nonce: string;
+  chain_id: ChainId;
   reporter_required: ReporterRequired
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
-    this.started_at = near.blockTimestamp();
+    this.started_at = near.blockTimestamp().toString();
     this.status = RequestStatus.FETCHING;
   }
 }
@@ -140,21 +141,21 @@ export class Report<Result> {
   request_id: RequestId;
   reporter: AccountId;
   timestamp: Timestamp;
-  chain_id: bigint;
+  chain_id: ChainId;
   // Evm address to withdraw rewards on target chain 
   reward_address: string;
   // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
-  nonce: bigint;
+  nonce: string;
   reporter_required: ReporterRequired;
   answers: Answer<Result>[];
-  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: bigint, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }) {
+  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: ChainId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }) {
     this.request_id = request_id;
     this.chain_id = chain_id;
     this.nonce = nonce;
     this.answers = answers;
     this.reporter_required = reporter_required;
     this.reward_address = reward_address;
-    this.timestamp = near.blockTimestamp();
+    this.timestamp = near.blockTimestamp().toString();
     this.reporter = near.signerAccountId();
   }
 }
@@ -162,9 +163,9 @@ export class Report<Result> {
 export class MpcConfig {
   mpc_contract: AccountId;
   // Deposit yocto to request mpc, the surplus will be refunded to this contract.
-  attached_balance: bigint;
+  attached_balance: string;
 
-  constructor({ mpc_contract, attached_balance }: { mpc_contract: AccountId, attached_balance: bigint }) {
+  constructor({ mpc_contract, attached_balance }: { mpc_contract: AccountId, attached_balance: string }) {
     this.mpc_contract = mpc_contract;
     this.attached_balance = attached_balance;
   }
@@ -176,7 +177,7 @@ export class Staked {
 }
 
 // Default timeout: 2 hours
-const DEFAULT_TIME_OUT = BigInt(18000);
+const DEFAULT_TIME_OUT = "18000";
 
 export abstract class Aggregator<Result> extends ContractBase {
   description: string;
@@ -223,7 +224,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   _set_mpc_config(mpc_config: MpcConfig): void {
     this._assert_operator();
     assert(mpc_config.mpc_contract != null, "MPC contract can't be null.");
-    assert(mpc_config.attached_balance > 0, "MPC attached balance should be greater than 0.");
+    assert(BigInt(mpc_config.attached_balance) > 0, "MPC attached balance should be greater than 0.");
 
     this.mpc_config.mpc_contract = mpc_config.mpc_contract;
     this.mpc_config.attached_balance = mpc_config.attached_balance;
@@ -252,15 +253,15 @@ export abstract class Aggregator<Result> extends ContractBase {
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id.toString(), publish_chain_config);
   }
 
-  abstract get_publish_chain_config({ chain_id }: { chain_id: bigint }): PublishChainConfig;
-  _get_publish_chain_config({ chain_id }: { chain_id: bigint }): PublishChainConfig {
+  abstract get_publish_chain_config({ chain_id }: { chain_id: ChainId }): PublishChainConfig;
+  _get_publish_chain_config({ chain_id }: { chain_id: ChainId }): PublishChainConfig {
     return this.publish_chain_config_lookup.get(chain_id.toString());
   }
 
   abstract set_timeout({ timeout }: { timeout: Timestamp }): void;
   _set_timeout({ timeout }: { timeout: Timestamp }): void {
     this._assert_operator();
-    assert(timeout > BigInt(0), "Timeout should be greater than 0.");
+    assert(BigInt(timeout) > BigInt(0), "Timeout should be greater than 0.");
     this.timeout = timeout;
   }
 
@@ -292,14 +293,14 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.response_lookup.get(request_id);
   }
 
-  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void;
-  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: bigint, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void {
+  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void;
+  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void {
     assert(request_id != null, "request_id is null");
     assert(nonce != null, "nonce is null");
     assert(answers != null && answers.length > 0, "answers is empty");
     assert(reward_address != null, "reward_address is null");
 
-    const _chain_id = BigInt(request_id) >> BigInt(192);
+    const _chain_id = (BigInt(request_id) >> BigInt(192)).toString();
 
     const __report = new Report<Result>({
       request_id,
@@ -333,7 +334,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
 
     // Update timeout status if necessary.
-    if (_response.status == RequestStatus.FETCHING && _response.started_at + this.timeout < near.blockTimestamp()) {
+    if (_response.status == RequestStatus.FETCHING && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
       _response.status = RequestStatus.TIMEOUT;
       new TimeoutEvent(_response).emit();
     }
@@ -346,7 +347,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     const _reports = this.report_lookup.get(request_id);
     const _signer = near.signerAccountId();
-    assert(_reports.find(r=>r.reporter === _signer) == null, "Already reported");
+    assert(_reports.find(r => r.reporter === _signer) == null, "Already reported");
     _reports.push(__report);
     new ReportEvent<Result>(__report).emit();
     this._try_aggregate({ request_id });
@@ -419,7 +420,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     const _response = this.response_lookup.get(request_id);
     if (_response.result) {
-      _response.updated_at = near.blockTimestamp();
+      _response.updated_at = near.blockTimestamp().toString();
       _response.status = RequestStatus.DONE;
       this._publish({ request_id, promise_index: 1 });
     }
@@ -454,11 +455,11 @@ export abstract class Aggregator<Result> extends ContractBase {
     near.log("bytes functionCallData", Array.from(function_call_data_bytes));
 
     const payload = ethereumTransaction({
-      chainId: _response.chain_id,
-      nonce: _response.nonce,
-      maxPriorityFeePerGas: _chain_config.max_priority_fee_per_gas,
-      maxFeePerGas: _chain_config.max_fee_per_gas,
-      gasLimit: _chain_config.gas_limit,
+      chainId: BigInt(_response.chain_id),
+      nonce: BigInt(_response.nonce),
+      maxPriorityFeePerGas: BigInt(_chain_config.max_priority_fee_per_gas),
+      maxFeePerGas: BigInt(_chain_config.max_fee_per_gas),
+      gasLimit: BigInt(_chain_config.gas_limit),
       to: _chain_config.xapi_address,
       value: BigInt(0),
       data: function_call_data_bytes,

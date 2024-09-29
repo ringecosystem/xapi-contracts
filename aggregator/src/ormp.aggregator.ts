@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, ChainId, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -10,9 +10,9 @@ class OrmpAggregator extends Aggregator<string> {
   constructor() {
     super({
       description: "ORMP Aggregator", timeout: null,
-      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24) }),
+      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24).toString() }),
       // todo update staking contract
-      staking_contract: "staking.guantong.testnet",
+      staking_contract: "stake.guantong.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
@@ -64,8 +64,8 @@ class OrmpAggregator extends Aggregator<string> {
       .map(report => report.reward_address);
 
     _response.result = result;
-    _response.nonce = BigInt(nonce);
-    _response.chain_id = BigInt(chain_id);
+    _response.nonce = nonce;
+    _response.chain_id = chain_id;
     _response.reporter_required = {
       quorum: Number(quorum),
       threshold: Number(threshold)
@@ -116,7 +116,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({ payableFunction: true })
-  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: bigint; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): void {
+  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): void {
     super._report({ request_id, nonce, answers, reporter_required, reward_address });
   }
 
@@ -173,7 +173,7 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_timeout();
   }
   @view({})
-  get_publish_chain_config({ chain_id }: { chain_id: bigint; }): PublishChainConfig {
+  get_publish_chain_config({ chain_id }: { chain_id: ChainId; }): PublishChainConfig {
     return super._get_publish_chain_config({ chain_id })
   }
   @view({})
