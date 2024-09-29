@@ -27,7 +27,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
-    return Array.from(this.report_lookup.get(request_id).keys()).length >= this.reporter_required.quorum;
+    return this.report_lookup.get(request_id).length >= this.reporter_required.threshold;
   }
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
@@ -36,6 +36,7 @@ class OrmpAggregator extends Aggregator<string> {
     const _valid_reporters = _reporters.filter(reporter =>
       top_staked.some(staked => staked.account_id === reporter)
     );
+    near.log("valid_reporters: ", JSON.stringify(_valid_reporters));
     const _reports = this.report_lookup.get(request_id);
     const _valid_reports = _reports.filter(r => _valid_reporters.includes(r.reporter));
 
@@ -44,12 +45,13 @@ class OrmpAggregator extends Aggregator<string> {
     _valid_reports.forEach(report => {
       const _result = this._aggregate_answer(report.answers.map(r => r.result)).result;
       _each_reporter_result.set(report.reporter, _result);
-      _each_reporter_report.push(`${_result}-${report.nonce}-${report.chain_id}`);
+      _each_reporter_report.push(`${_result} | ${report.nonce} | ${report.chain_id}`);
     });
 
     const most_common_report = this._aggregate_answer(_each_reporter_report);
+    near.log("most_common_report: ", most_common_report);
 
-    const [result, nonce, chain_id] = most_common_report.result.split('-');
+    const [result, nonce, chain_id] = most_common_report.result.split(' | ');
     assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
     assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
 
@@ -57,7 +59,7 @@ class OrmpAggregator extends Aggregator<string> {
 
     _response.reporter_reward_addresses = _valid_reports
       .filter(report => {
-        const key = `${_each_reporter_result.get(report.reporter)}-${report.nonce}-${report.chain_id}`;
+        const key = `${_each_reporter_result.get(report.reporter)} | ${report.nonce} | ${report.chain_id}`;
         return key === most_common_report.result;
       })
       .map(report => report.reward_address);
@@ -65,6 +67,7 @@ class OrmpAggregator extends Aggregator<string> {
     _response.result = result;
     _response.nonce = nonce;
     _response.chain_id = chain_id;
+    this.response_lookup.set(request_id, _response);
     return true;
   }
 
@@ -97,7 +100,7 @@ class OrmpAggregator extends Aggregator<string> {
 
   @call({})
   publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
-    return this._publish({ request_id, promise_index: 0 });
+    return super._publish({ request_id, promise_index: 0 });
   }
 
   @call({ privateFunction: true })
@@ -106,13 +109,13 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({ privateFunction: true })
-  post_aggregate_callback({ request_id }: { request_id: RequestId; }): void {
-    this.post_aggregate_callback({ request_id });
+  post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
+    super._post_aggregate_callback({ request_id, promise_index });
   }
 
   @call({ payableFunction: true })
-  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): void {
-    super._report({ request_id, nonce, answers, reporter_required, reward_address });
+  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): NearPromise {
+    return super._report({ request_id, nonce, answers, reporter_required, reward_address });
   }
 
   @call({ payableFunction: true })

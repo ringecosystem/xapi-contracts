@@ -9,9 +9,9 @@ export type ChainId = string;
 
 export enum RequestStatus {
   FETCHING,
-  DONE,
-  TIMEOUT,
+  AGGREGATED,
   PUBLISHED,
+  TIMEOUT,
 }
 
 export enum RequestMethod {
@@ -105,6 +105,12 @@ class PublishData {
 class PublishEvent extends Nep297Event {
   constructor(data: PublishData) {
     super("Publish", data)
+  }
+}
+
+class AggregatedEvent extends Nep297Event {
+  constructor(data: Response<any>) {
+    super("Aggregated", data);
   }
 }
 
@@ -217,6 +223,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     this.data_sources = new UnorderedMap("data_sources");
     this.report_lookup = new LookupMap("report_lookup");
     this.response_lookup = new LookupMap("response_lookup");
+    this.publish_chain_config_lookup = new LookupMap("publish_chain_config_lookup");
   }
 
   abstract _assert_operator(): void;
@@ -229,8 +236,8 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_mpc_config(mpc_config: MpcConfig): void;
   _set_mpc_config(mpc_config: MpcConfig): void {
     this._assert_operator();
-    assert(mpc_config.mpc_contract != null, "MPC contract can't be null.");
-    assert(BigInt(mpc_config.attached_balance) > 0, "MPC attached balance should be greater than 0.");
+    assert(mpc_config.mpc_contract != null, "mpc_contract can't be null.");
+    assert(BigInt(mpc_config.attached_balance) > 0, "attached_balance should be greater than 0.");
 
     this.mpc_config.mpc_contract = mpc_config.mpc_contract;
     this.mpc_config.attached_balance = mpc_config.attached_balance;
@@ -244,9 +251,9 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_reporter_required(reporter_required: ReporterRequired): void;
   _set_reporter_required(reporter_required: ReporterRequired): void {
     this._assert_operator();
-    assert(reporter_required.quorum > 0, "Quorum should be greater than 0");
-    assert(reporter_required.threshold > 0, "Threshold should be greater than 0");
-    assert(reporter_required.quorum >= reporter_required.threshold, "Quorum should >= threshold");
+    assert(reporter_required.quorum > 0, "quorum should be greater than 0");
+    assert(reporter_required.threshold > 0, "threshold should be greater than 0");
+    assert(reporter_required.quorum >= reporter_required.threshold, "quorum should >= threshold");
     this.reporter_required = reporter_required;
   }
 
@@ -269,7 +276,11 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_publish_chain_config(publis_chain_config: PublishChainConfig): void;
   _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
     this._assert_operator();
-    assert(publish_chain_config.chain_id != null, "Chain id can't be null.");
+    assert(publish_chain_config.chain_id != null, "chain_id can't be null.");
+    assert(publish_chain_config.gas_limit != null, "gas_limit can't be null.");
+    assert(publish_chain_config.max_fee_per_gas != null, "max_fee_per_gas can't be null.");
+    assert(publish_chain_config.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
+    assert(publish_chain_config.xapi_address != null, "xapi_address can't be null.");
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id.toString(), publish_chain_config);
   }
 
@@ -281,7 +292,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract set_timeout({ timeout }: { timeout: Timestamp }): void;
   _set_timeout({ timeout }: { timeout: Timestamp }): void {
     this._assert_operator();
-    assert(BigInt(timeout) > BigInt(0), "Timeout should be greater than 0.");
+    assert(BigInt(timeout) > BigInt(0), "timeout should be greater than 0.");
     this.timeout = timeout;
   }
 
@@ -313,8 +324,8 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.response_lookup.get(request_id);
   }
 
-  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void;
-  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): void {
+  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): NearPromise;
+  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): NearPromise {
     assert(request_id != null, "request_id is null");
     assert(nonce != null, "nonce is null");
     assert(answers != null && answers.length > 0, "answers is empty");
@@ -372,7 +383,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     this.report_lookup.set(request_id, _reports);
     this.response_lookup.set(request_id, _response);
     new ReportEvent<Result>(__report).emit();
-    this._try_aggregate({ request_id });
+    return this._try_aggregate({ request_id });
   }
 
   abstract add_data_source(data_source: DataSource): void;
@@ -408,15 +419,17 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   _try_aggregate({ request_id }: { request_id: RequestId }): NearPromise {
     if (this._can_aggregate({ request_id })) {
+      near.log("try_aggregate: ", request_id);
       const _response = this.response_lookup.get(request_id);
       assert(
         _response.status == RequestStatus.FETCHING,
         `The request status is ${_response.status}`
       );
       assert(this.staking_contract != null && this.staking_contract != "", "Staking contract cannot be null");
+      near.log(`get_top_staked: request_id: ${request_id}, contract: ${this.staking_contract}, top: ${this.reporter_required.quorum}, prepaidGas: ${near.prepaidGas()}, leftGas: ${near.prepaidGas() - near.usedGas()}`);
       // Check staking before aggregating
       const promise = NearPromise.new(this.staking_contract)
-        .functionCall("get_top_staked", JSON.stringify({ top: this.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+        .functionCall("get_top_staked", JSON.stringify({ top: this.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(50))
         .then(
           NearPromise.new(near.currentAccountId())
             .functionCall(
@@ -424,7 +437,7 @@ export abstract class Aggregator<Result> extends ContractBase {
               JSON.stringify({ request_id: request_id, promise_index: 0 }),
               BigInt(0),
               // Beware of the 300T cap with mpc gas
-              BigInt(ONE_TERA_GAS * BigInt(15))
+              BigInt(near.prepaidGas() - near.usedGas() - ONE_TERA_GAS * BigInt(50))
             )
         );
 
@@ -443,19 +456,18 @@ export abstract class Aggregator<Result> extends ContractBase {
     const _response = this.response_lookup.get(request_id);
     if (_response.result) {
       _response.updated_at = near.blockTimestamp().toString();
-      _response.status = RequestStatus.DONE;
+      _response.status = RequestStatus.AGGREGATED;
       this.response_lookup.set(request_id, _response);
-      this._publish({ request_id, promise_index: 1 });
+      new AggregatedEvent(_response).emit();
     }
   }
 
-  // Use this if autopublish fails due to mpc failure. Any safe problem??
   abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
   _publish({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): NearPromise {
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
 
-    assert(_response.status == RequestStatus.DONE, `Response status is ${_response.status}, can't be published`)
+    assert(_response.status == RequestStatus.AGGREGATED, `Response status is ${_response.status}, can't be published`);
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
@@ -500,6 +512,8 @@ export abstract class Aggregator<Result> extends ContractBase {
         "path": "test"
       }
     }
+    this.response_lookup.set(request_id, _response);
+    near.log(`before request signature, prepaidGas: ${near.prepaidGas()}, leftGas: ${near.prepaidGas() - near.usedGas()}`)
     const promise = NearPromise.new(this.mpc_config.mpc_contract)
       // 1 NEAR to request signature, the surplus will be refunded
       .functionCall("sign", JSON.stringify(mpc_args), BigInt(this.mpc_config.attached_balance), ONE_TERA_GAS * BigInt(250))
@@ -510,10 +524,9 @@ export abstract class Aggregator<Result> extends ContractBase {
             JSON.stringify({ request_id: request_id, promise_index: promise_index }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
-            BigInt(ONE_TERA_GAS * BigInt(15))
+            BigInt(ONE_TERA_GAS * BigInt(25))
           )
       );
-    this.response_lookup.set(request_id, _response);
     return promise.asReturn();
   }
 

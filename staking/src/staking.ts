@@ -208,7 +208,8 @@ class Staking extends ContractBase implements FungibleReceiver {
   // views
 
   @view({})
-  get_top_staked({ top }: { top: number }) {
+  get_top_staked({ top }: { top: number }): { account_id: any, amount: string }[] {
+    near.log("get_top_staked: ", top);
     const all_stakers = [];
     // near contract call-function as-transaction stake.guantong.testnet get_top_staked json-args '{"top":3}' prepaid-gas '100.0 Tgas' attached-deposit '0 NEAR' sign-as guantong.testnet network-config testnet sign-with-legacy-keychain send
     const _staked_array = this.staked_map.toArray();
