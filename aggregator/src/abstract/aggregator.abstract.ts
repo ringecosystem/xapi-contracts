@@ -189,7 +189,7 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
   // key: request_id, subKey: reporter accountId
-  report_lookup: LookupMap<Map<AccountId, Report<Result>>>;
+  report_lookup: LookupMap<Report<Result>[]>;
   // key: request_id
   response_lookup: LookupMap<Response<Result>>;
   // key: chain_id
@@ -276,9 +276,9 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   abstract get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result>;
   _get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result> {
-    const _report_map = this.report_lookup.get(request_id);
-    assert(_report_map != null, `Non reports for request_id: ${request_id}`);
-    return _report_map.get(reporter_account);
+    const _reports = this.report_lookup.get(request_id);
+    assert(_reports != null, `Non reports for request_id: ${request_id}`);
+    return _reports.find(r => r.reporter === reporter_account);
   }
 
   abstract get_latest_response(): Response<Result>;
@@ -327,7 +327,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       );
       this.report_lookup.set(
         request_id,
-        new Map<AccountId, Report<Result>>()
+        []
       );
       _response = this.response_lookup.get(request_id);
     }
@@ -346,8 +346,8 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     const _reports = this.report_lookup.get(request_id);
     const _signer = near.signerAccountId();
-    assert(_reports.get(_signer) == null, "Already reported");
-    _reports.set(_signer, __report);
+    assert(_reports.find(r=>r.reporter === _signer) == null, "Already reported");
+    _reports.push(__report);
     new ReportEvent<Result>(__report).emit();
     this._try_aggregate({ request_id });
   }

@@ -31,39 +31,35 @@ class OrmpAggregator extends Aggregator<string> {
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
     // filter invalid reporter
-    const _reporters = Array.from(this.report_lookup.get(request_id).keys());
+    const _reporters = this.report_lookup.get(request_id).map(r => r.reporter);
     const _valid_reporters = _reporters.filter(reporter =>
       top_staked.some(staked => staked.account_id === reporter)
     );
     const _reports = this.report_lookup.get(request_id);
-    const _valid_reports = [];
-    for (const reporter of _valid_reporters) {
-      _valid_reports.push(_reports.get(reporter));
-    }
+    const _valid_reports = _reports.filter(r => _valid_reporters.includes(r.reporter));
 
-    const answer_count: { [key: string]: { count: number; report: Report<string> } } = {};
+
+    const _each_reporter_report = [];
+    const _each_reporter_result = new Map<string, string>();
     _valid_reports.forEach(report => {
-      const key = `${report.result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
-      if (!answer_count[key]) {
-        answer_count[key] = { count: 0, report };
-      }
-      answer_count[key].count++;
+      const _result = this._aggregate_answer(report.answers.map(r => r.result)).result;
+      _each_reporter_result.set(report.reporter, _result);
+      _each_reporter_report.push(`${_result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`);
     });
 
-    const most_common_key = Object.keys(answer_count).reduce((a, b) =>
-      answer_count[a].count > answer_count[b].count ? a : b
-    );
-    const [result, nonce, chain_id, quorum, threshold] = most_common_key.split('-');
+    const most_common_report = this._aggregate_answer(_each_reporter_report);
+
+    const [result, nonce, chain_id, quorum, threshold] = most_common_report.result.split('-');
     assert(_valid_reporters.length > Number(quorum), `Quorum: required ${quorum}, but got ${_valid_reporters.length}`);
-    assert(answer_count[most_common_key].count > Number(threshold), `Threshold: required ${threshold}, but got ${answer_count[most_common_key].count}`)
+    assert(most_common_report.count > Number(threshold), `Threshold: required ${threshold}, but got ${most_common_report.count}`)
 
 
     const _response = this.response_lookup.get(request_id);
 
     _response.reporter_reward_addresses = _valid_reports
       .filter(report => {
-        const key = `${report.result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
-        return key === most_common_key;
+        const key = `${_each_reporter_result.get(report.reporter)}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
+        return key === most_common_report.result;
       })
       .map(report => report.reward_address);
 
@@ -75,6 +71,25 @@ class OrmpAggregator extends Aggregator<string> {
       threshold: Number(threshold)
     }
     return true;
+  }
+
+  _aggregate_answer(answers: string[]): { result: string, count: number } {
+    const answer_frequency: { [key: string]: number } = {};
+
+    answers.forEach(answer => {
+      if (!answer_frequency[answer]) {
+        answer_frequency[answer] = 0;
+      }
+      answer_frequency[answer]++;
+    });
+
+    const most_common_answer = Object.keys(answer_frequency).reduce((a, b) =>
+      answer_frequency[a] > answer_frequency[b] ? a : b
+    );
+    return {
+      result: most_common_answer,
+      count: answer_frequency[most_common_answer]
+    }
   }
 
   @migrate({})

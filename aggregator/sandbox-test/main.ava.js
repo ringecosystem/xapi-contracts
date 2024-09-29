@@ -72,3 +72,19 @@ test('publish external', async (t) => {
   const result = await contract.call(contract, 'publish_external', { request_id: requestId });
   t.truthy(result);
 });
+
+test('report 11', async (t) => {
+  const { contract, root } = t.context.accounts;
+  const requestId = '6277101735386680763835789423207666416102355444464034512896';
+  const nonce = '1';
+  const answers = [{ data_source_name: 'test-source', result: 'test-result' }];
+  const reporterRequired = { quorum: 3, threshold: 2 };
+  const rewardAddress = 'reward-address';
+  console.log({ request_id: requestId, nonce, answers, reporter_required: reporterRequired, reward_address: rewardAddress });
+  await contract.call(root, 'report',
+    { request_id: requestId, nonce, answers, reporter_required: reporterRequired, reward_address: rewardAddress });
+
+  const response = await contract.view('get_response', { request_id: requestId });
+  console.log("response", response);
+  t.is(response.result, 'test-result');
+});
