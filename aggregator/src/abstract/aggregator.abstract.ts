@@ -177,11 +177,14 @@ export class Staked {
 }
 
 // Default timeout: 2 hours
-const DEFAULT_TIME_OUT = "18000";
+const DEFAULT_TIME_OUT = "18000000000000";
+
+const DEFAULT_TOP_STAKED = 50;
 
 export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
+  // Nanoseconds
   timeout: Timestamp;
 
   mpc_config: MpcConfig;
@@ -275,11 +278,11 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.latest_request_id;
   }
 
-  abstract get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result>;
-  _get_report({ request_id, reporter_account }: { request_id: RequestId, reporter_account: AccountId }): Report<Result> {
+  abstract get_reports({ request_id }: { request_id: RequestId }): Report<Result>[];
+  _get_reports({ request_id }: { request_id: RequestId }): Report<Result>[] {
     const _reports = this.report_lookup.get(request_id);
     assert(_reports != null, `Non reports for request_id: ${request_id}`);
-    return _reports.find(r => r.reporter === reporter_account);
+    return _reports;
   }
 
   abstract get_latest_response(): Response<Result>;
@@ -328,7 +331,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       );
       this.report_lookup.set(
         request_id,
-        []
+        new Array<Report<Result>>()
       );
       _response = this.response_lookup.get(request_id);
     }
@@ -349,6 +352,8 @@ export abstract class Aggregator<Result> extends ContractBase {
     const _signer = near.signerAccountId();
     assert(_reports.find(r => r.reporter === _signer) == null, "Already reported");
     _reports.push(__report);
+    this.report_lookup.set(request_id, _reports);
+    this.response_lookup.set(request_id, _response);
     new ReportEvent<Result>(__report).emit();
     this._try_aggregate({ request_id });
   }
@@ -394,7 +399,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       assert(this.staking_contract != null && this.staking_contract != "", "Staking contract cannot be null");
       // Check staking before aggregating
       const promise = NearPromise.new(this.staking_contract)
-        .functionCall("get_top_staked", JSON.stringify({ top: _response.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+        .functionCall("get_top_staked", JSON.stringify({ top: DEFAULT_TOP_STAKED }), BigInt(0), ONE_TERA_GAS * BigInt(15))
         .then(
           NearPromise.new(near.currentAccountId())
             .functionCall(
@@ -422,6 +427,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     if (_response.result) {
       _response.updated_at = near.blockTimestamp().toString();
       _response.status = RequestStatus.DONE;
+      this.response_lookup.set(request_id, _response);
       this._publish({ request_id, promise_index: 1 });
     }
   }
@@ -490,7 +496,7 @@ export abstract class Aggregator<Result> extends ContractBase {
             BigInt(ONE_TERA_GAS * BigInt(15))
           )
       );
-
+    this.response_lookup.set(request_id, _response);
     return promise.asReturn();
   }
 
@@ -505,6 +511,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       new PublishEvent(new PublishData({
         request_id, response: _response, chain_config: _chain_config, signature: _result.result
       })).emit();
+      this.response_lookup.set(request_id, _response);
     }
   }
 

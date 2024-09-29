@@ -26,7 +26,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
-    return Array.from(this.report_lookup.get(request_id).keys()).length >= 3;
+    return Array.from(this.report_lookup.get(request_id).keys()).length >= 1;
   }
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
@@ -165,8 +165,8 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_staking_contract();
   }
   @view({})
-  get_report({ request_id, reporter_account }: { request_id: RequestId; reporter_account: AccountId; }): Report<string> {
-    return super._get_report({ request_id, reporter_account });
+  get_reports({ request_id }: { request_id: RequestId; }): Report<string>[] {
+    return super._get_reports({ request_id });
   }
   @view({})
   get_timeout(): Timestamp {
