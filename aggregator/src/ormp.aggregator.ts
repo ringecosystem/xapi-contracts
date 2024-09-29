@@ -11,6 +11,7 @@ class OrmpAggregator extends Aggregator<string> {
     super({
       description: "ORMP Aggregator", timeout: null,
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24).toString() }),
+      reporter_required: new ReporterRequired(1, 1),
       // todo update staking contract
       staking_contract: "stake.guantong.testnet",
       contract_metadata: new ContractSourceMetadata({
@@ -26,7 +27,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
-    return Array.from(this.report_lookup.get(request_id).keys()).length >= 1;
+    return Array.from(this.report_lookup.get(request_id).keys()).length >= this.reporter_required.quorum;
   }
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
@@ -38,27 +39,25 @@ class OrmpAggregator extends Aggregator<string> {
     const _reports = this.report_lookup.get(request_id);
     const _valid_reports = _reports.filter(r => _valid_reporters.includes(r.reporter));
 
-
     const _each_reporter_report = [];
     const _each_reporter_result = new Map<string, string>();
     _valid_reports.forEach(report => {
       const _result = this._aggregate_answer(report.answers.map(r => r.result)).result;
       _each_reporter_result.set(report.reporter, _result);
-      _each_reporter_report.push(`${_result}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`);
+      _each_reporter_report.push(`${_result}-${report.nonce}-${report.chain_id}`);
     });
 
     const most_common_report = this._aggregate_answer(_each_reporter_report);
 
-    const [result, nonce, chain_id, quorum, threshold] = most_common_report.result.split('-');
-    assert(_valid_reporters.length > Number(quorum), `Quorum: required ${quorum}, but got ${_valid_reporters.length}`);
-    assert(most_common_report.count > Number(threshold), `Threshold: required ${threshold}, but got ${most_common_report.count}`)
-
+    const [result, nonce, chain_id] = most_common_report.result.split('-');
+    assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
+    assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
 
     const _response = this.response_lookup.get(request_id);
 
     _response.reporter_reward_addresses = _valid_reports
       .filter(report => {
-        const key = `${_each_reporter_result.get(report.reporter)}-${report.nonce}-${report.chain_id}-${report.reporter_required.quorum}-${report.reporter_required.threshold}`;
+        const key = `${_each_reporter_result.get(report.reporter)}-${report.nonce}-${report.chain_id}`;
         return key === most_common_report.result;
       })
       .map(report => report.reward_address);
@@ -66,10 +65,6 @@ class OrmpAggregator extends Aggregator<string> {
     _response.result = result;
     _response.nonce = nonce;
     _response.chain_id = chain_id;
-    _response.reporter_required = {
-      quorum: Number(quorum),
-      threshold: Number(threshold)
-    }
     return true;
   }
 
@@ -146,6 +141,11 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({})
+  set_reporter_required(reporter_required: ReporterRequired): void {
+    super._set_reporter_required(reporter_required);
+  }
+
+  @call({})
   set_staking_contract({ staking_contract }: { staking_contract: AccountId }): void {
     super._set_staking_contract({ staking_contract });
   }
@@ -159,6 +159,10 @@ class OrmpAggregator extends Aggregator<string> {
   @view({})
   get_mpc_config(): MpcConfig {
     return super._get_mpc_config();
+  }
+  @view({})
+  get_reporter_required(): ReporterRequired {
+    return super._get_reporter_required();
   }
   @view({})
   get_staking_contract(): AccountId {

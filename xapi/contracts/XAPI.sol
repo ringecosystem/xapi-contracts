@@ -12,18 +12,17 @@ contract XAPI is IXAPI, Ownable2Step {
 
     constructor() Ownable(msg.sender) {}
 
-    function makeRequest(
-        string memory requestData,
-        bytes4 callbackFunction,
-        string memory aggregator,
-        ReporterRequired memory reporterRequired
-    ) external payable returns (uint256) {
+    function makeRequest(string memory requestData, bytes4 callbackFunction, string memory aggregator)
+        external
+        payable
+        returns (uint256)
+    {
         require(msg.sender != address(this), "CANT call self");
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[aggregator];
         require(aggregatorConfig.fulfillAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
-        uint256 feeRequired = aggregatorConfig.perReporterFee * reporterRequired.quorum + aggregatorConfig.publishFee;
+        uint256 feeRequired = aggregatorConfig.perReporterFee * aggregatorConfig.quorum + aggregatorConfig.publishFee;
         require(msg.value >= feeRequired, "Insufficient fees");
 
         requestCount++;
@@ -36,11 +35,10 @@ contract XAPI is IXAPI, Ownable2Step {
             payment: msg.value,
             aggregator: aggregator,
             fulfillAddress: aggregatorConfig.fulfillAddress,
-            reporterRequired: reporterRequired,
             response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
             requestData: requestData
         });
-        emit RequestMade(requestId, aggregator, requestData, msg.sender, reporterRequired);
+        emit RequestMade(requestId, aggregator, requestData, msg.sender);
         return requestId;
     }
 
@@ -99,13 +97,15 @@ contract XAPI is IXAPI, Ownable2Step {
         uint256 perReporterFee,
         uint256 publishFee,
         address fulfillAddress,
-        address rewardAddress
+        address rewardAddress,
+        uint8 quorum
     ) external onlyOwner {
         aggregatorConfigs[aggregator] = AggregatorConfig({
             fulfillAddress: fulfillAddress,
             perReporterFee: perReporterFee,
             publishFee: publishFee,
             rewardAddress: rewardAddress,
+            quorum: quorum,
             suspended: false
         });
 

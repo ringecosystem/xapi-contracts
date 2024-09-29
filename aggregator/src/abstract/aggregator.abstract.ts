@@ -111,6 +111,10 @@ class PublishEvent extends Nep297Event {
 export class ReporterRequired {
   quorum: number;
   threshold: number;
+  constructor(quorum: number, threshold: number) {
+    this.quorum = quorum;
+    this.threshold = threshold;
+  }
 }
 
 export class Response<Result> {
@@ -128,7 +132,6 @@ export class Response<Result> {
   result: Result;
   nonce: string;
   chain_id: ChainId;
-  reporter_required: ReporterRequired
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
@@ -179,8 +182,6 @@ export class Staked {
 // Default timeout: 2 hours
 const DEFAULT_TIME_OUT = "18000000000000";
 
-const DEFAULT_TOP_STAKED = 50;
-
 export abstract class Aggregator<Result> extends ContractBase {
   description: string;
   latest_request_id: RequestId;
@@ -189,6 +190,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
   mpc_config: MpcConfig;
   staking_contract: AccountId;
+  reporter_required: ReporterRequired
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -199,10 +201,11 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, timeout, mpc_config, staking_contract, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, timeout, mpc_config, reporter_required, staking_contract, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, reporter_required: ReporterRequired, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
     this.mpc_config = mpc_config;
+    this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
 
     if (!timeout) {
@@ -236,6 +239,20 @@ export abstract class Aggregator<Result> extends ContractBase {
   abstract get_mpc_config(): MpcConfig;
   _get_mpc_config(): MpcConfig {
     return this.mpc_config;
+  }
+
+  abstract set_reporter_required(reporter_required: ReporterRequired): void;
+  _set_reporter_required(reporter_required: ReporterRequired): void {
+    this._assert_operator();
+    assert(reporter_required.quorum > 0, "Quorum should be greater than 0");
+    assert(reporter_required.threshold > 0, "Threshold should be greater than 0");
+    assert(reporter_required.quorum >= reporter_required.threshold, "Quorum should >= threshold");
+    this.reporter_required = reporter_required;
+  }
+
+  abstract get_reporter_required(): ReporterRequired;
+  _get_reporter_required(): ReporterRequired {
+    return this.reporter_required;
   }
 
   abstract set_staking_contract({ staking_contract }: { staking_contract: AccountId }): void;
@@ -399,7 +416,7 @@ export abstract class Aggregator<Result> extends ContractBase {
       assert(this.staking_contract != null && this.staking_contract != "", "Staking contract cannot be null");
       // Check staking before aggregating
       const promise = NearPromise.new(this.staking_contract)
-        .functionCall("get_top_staked", JSON.stringify({ top: DEFAULT_TOP_STAKED }), BigInt(0), ONE_TERA_GAS * BigInt(15))
+        .functionCall("get_top_staked", JSON.stringify({ top: this.reporter_required.quorum }), BigInt(0), ONE_TERA_GAS * BigInt(15))
         .then(
           NearPromise.new(near.currentAccountId())
             .functionCall(

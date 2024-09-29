@@ -5,8 +5,8 @@
   "license": "MIT",
   "scripts": {
     "build": "npx hardhat compile",
+    "clear": "npx hardhat clean",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
-    "deploy-consumer": "npx hardhat ignition deploy ./ignition/modules/ConsumerExample.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
     "verify": "npx hardhat verify --network sepolia 0xC32BDE0002D71fD9a6C64eED65bdFD6e72F4Deba",
     "test": "npx hardhat test"

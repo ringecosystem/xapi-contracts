@@ -6,7 +6,8 @@ module.exports = buildModule("XAPIModule", (m) => {
   const setAggregatorConfig = m.call(xapi, "setAggregatorConfig", [
     "exampleAggregator",
     m.getParameter("perReporterFee", 100000),
-    m.getParameter("publishFee", 500000)
+    m.getParameter("publishFee", 500000),
+    5
   ]);
 
   return { xapi: m.afterDeploy(xapi, [setAggregatorConfig]) };

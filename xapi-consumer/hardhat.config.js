@@ -9,7 +9,7 @@ module.exports = {
   solidity: "0.8.27",
   networks: {
     sepolia: {
-      url: "https://1rpc.io/sepolia",
+      url: "https://rpc.sepolia.org",
       chainId: 11155111,
       accounts: [PRIVATE_KEY]
     }
