@@ -54,11 +54,11 @@ export class DataSource {
   }
 }
 
-export class Answer<Result> {
+export class Answer {
   data_source_name: string;
-  result: Result;
+  result: string;
 
-  constructor({ data_source_name, result }: { data_source_name: string, result: Result }) {
+  constructor({ data_source_name, result }: { data_source_name: string, result: string }) {
     this.data_source_name = data_source_name;
     this.result = result;
   }
@@ -76,25 +76,25 @@ class RemoveDataSourceEvent extends Nep297Event {
   }
 }
 
-class TimeoutEvent<Result> extends Nep297Event {
-  constructor(data: Response<Result>) {
+class TimeoutEvent extends Nep297Event {
+  constructor(data: Response) {
     super("Timeout", data)
   }
 }
 
-class ReportEvent<Result> extends Nep297Event {
-  constructor(data: Report<Result>) {
+class ReportEvent extends Nep297Event {
+  constructor(data: Report) {
     super("Report", data)
   }
 }
 
 class PublishData {
   request_id: RequestId;
-  response: Response<any>;
+  response: Response;
   chain_config: PublishChainConfig;
   signature: string;
 
-  constructor({ request_id, response, chain_config, signature }: { request_id: RequestId, response: Response<any>, chain_config: PublishChainConfig, signature: string }) {
+  constructor({ request_id, response, chain_config, signature }: { request_id: RequestId, response: Response, chain_config: PublishChainConfig, signature: string }) {
     this.request_id = request_id;
     this.response = response;
     this.chain_config = chain_config;
@@ -109,7 +109,7 @@ class PublishEvent extends Nep297Event {
 }
 
 class AggregatedEvent extends Nep297Event {
-  constructor(data: Response<any>) {
+  constructor(data: Response) {
     super("Aggregated", data);
   }
 }
@@ -123,7 +123,7 @@ export class ReporterRequired {
   }
 }
 
-export class Response<Result> {
+export class Response {
   request_id: RequestId;
   reporters: AccountId[];
   // EVM address to distribute rewards
@@ -135,7 +135,7 @@ export class Response<Result> {
   call_data: string;
 
   // 👇 These values should be aggregated from reporter's answer
-  result: Result;
+  result: string;
   nonce: string;
   chain_id: ChainId;
 
@@ -146,7 +146,7 @@ export class Response<Result> {
   }
 }
 
-export class Report<Result> {
+export class Report {
   request_id: RequestId;
   reporter: AccountId;
   timestamp: Timestamp;
@@ -156,8 +156,8 @@ export class Report<Result> {
   // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
   nonce: string;
   reporter_required: ReporterRequired;
-  answers: Answer<Result>[];
-  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: ChainId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }) {
+  answers: Answer[];
+  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: ChainId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }) {
     this.request_id = request_id;
     this.chain_id = chain_id;
     this.nonce = nonce;
@@ -188,7 +188,7 @@ export class Staked {
 // Default timeout: 2 hours
 const DEFAULT_TIME_OUT = "18000000000000";
 
-export abstract class Aggregator<Result> extends ContractBase {
+export abstract class Aggregator extends ContractBase {
   description: string;
   latest_request_id: RequestId;
   // Nanoseconds
@@ -201,9 +201,9 @@ export abstract class Aggregator<Result> extends ContractBase {
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
   // key: request_id, subKey: reporter accountId
-  report_lookup: LookupMap<Report<Result>[]>;
+  report_lookup: LookupMap<Report[]>;
   // key: request_id
-  response_lookup: LookupMap<Response<Result>>;
+  response_lookup: LookupMap<Response>;
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
@@ -306,26 +306,26 @@ export abstract class Aggregator<Result> extends ContractBase {
     return this.latest_request_id;
   }
 
-  abstract get_reports({ request_id }: { request_id: RequestId }): Report<Result>[];
-  _get_reports({ request_id }: { request_id: RequestId }): Report<Result>[] {
+  abstract get_reports({ request_id }: { request_id: RequestId }): Report[];
+  _get_reports({ request_id }: { request_id: RequestId }): Report[] {
     const _reports = this.report_lookup.get(request_id);
     assert(_reports != null, `Non reports for request_id: ${request_id}`);
     return _reports;
   }
 
-  abstract get_latest_response(): Response<Result>;
-  _get_latest_response(): Response<Result> {
+  abstract get_latest_response(): Response;
+  _get_latest_response(): Response {
     assert(this.latest_request_id != null, "No latest response");
     return this.response_lookup.get(this.latest_request_id);
   }
 
-  abstract get_response({ request_id }: { request_id: RequestId }): Response<Result>;
-  _get_response({ request_id }: { request_id: RequestId }): Response<Result> {
+  abstract get_response({ request_id }: { request_id: RequestId }): Response;
+  _get_response({ request_id }: { request_id: RequestId }): Response {
     return this.response_lookup.get(request_id);
   }
 
-  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): NearPromise;
-  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer<Result>[], reporter_required: ReporterRequired, reward_address: string }): NearPromise {
+  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }): NearPromise;
+  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }): NearPromise {
     assert(request_id != null, "request_id is null");
     assert(nonce != null, "nonce is null");
     assert(answers != null && answers.length > 0, "answers is empty");
@@ -333,7 +333,7 @@ export abstract class Aggregator<Result> extends ContractBase {
 
     const _chain_id = (BigInt(request_id) >> BigInt(192)).toString();
 
-    const __report = new Report<Result>({
+    const __report = new Report({
       request_id,
       chain_id: _chain_id,
       nonce,
@@ -355,11 +355,11 @@ export abstract class Aggregator<Result> extends ContractBase {
       // !!! The request_id may be abused to prevent normal requests.
       this.response_lookup.set(
         request_id,
-        new Response<Result>(request_id)
+        new Response(request_id)
       );
       this.report_lookup.set(
         request_id,
-        new Array<Report<Result>>()
+        new Array<Report>()
       );
       _response = this.response_lookup.get(request_id);
     }
@@ -382,7 +382,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     _reports.push(__report);
     this.report_lookup.set(request_id, _reports);
     this.response_lookup.set(request_id, _response);
-    new ReportEvent<Result>(__report).emit();
+    new ReportEvent(__report).emit();
     return this._try_aggregate({ request_id });
   }
 
@@ -545,7 +545,7 @@ export abstract class Aggregator<Result> extends ContractBase {
     }
   }
 
-  private _report_deposit(report: Report<Result>): bigint {
+  private _report_deposit(report: Report): bigint {
     const _bytes = BigInt(sizeOf(report));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear

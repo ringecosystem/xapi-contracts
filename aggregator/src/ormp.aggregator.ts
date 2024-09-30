@@ -4,7 +4,7 @@ import { Aggregator, Answer, ChainId, DataSource, MpcConfig, PublishChainConfig,
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
-class OrmpAggregator extends Aggregator<string> {
+class OrmpAggregator extends Aggregator {
   // !!! Need to implement
 
   constructor() {
@@ -114,7 +114,7 @@ class OrmpAggregator extends Aggregator<string> {
   }
 
   @call({ payableFunction: true })
-  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer<string>[]; reporter_required: ReporterRequired; reward_address: string }): NearPromise {
+  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer[]; reporter_required: ReporterRequired; reward_address: string }): NearPromise {
     return super._report({ request_id, nonce, answers, reporter_required, reward_address });
   }
 
@@ -172,7 +172,7 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_staking_contract();
   }
   @view({})
-  get_reports({ request_id }: { request_id: RequestId; }): Report<string>[] {
+  get_reports({ request_id }: { request_id: RequestId; }): Report[] {
     return super._get_reports({ request_id });
   }
   @view({})
@@ -188,11 +188,11 @@ class OrmpAggregator extends Aggregator<string> {
     return super._get_latest_request_id();
   }
   @view({})
-  get_latest_response(): Response<string> {
+  get_latest_response(): Response {
     return super._get_latest_response();
   }
   @view({})
-  get_response({ request_id }: { request_id: RequestId; }): Response<string> {
+  get_response({ request_id }: { request_id: RequestId; }): Response {
     return super._get_response({ request_id });
   }
   @view({})
