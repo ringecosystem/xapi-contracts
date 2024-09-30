@@ -437,7 +437,7 @@ export abstract class Aggregator extends ContractBase {
               JSON.stringify({ request_id: request_id, promise_index: 0 }),
               BigInt(0),
               // Beware of the 300T cap with mpc gas
-              BigInt(near.prepaidGas() - near.usedGas() - ONE_TERA_GAS * BigInt(50))
+              BigInt(ONE_TERA_GAS * BigInt(100))
             )
         );
 
