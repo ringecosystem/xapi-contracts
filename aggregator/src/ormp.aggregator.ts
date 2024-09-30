@@ -57,14 +57,14 @@ class OrmpAggregator extends Aggregator {
 
     const _response = this.response_lookup.get(request_id);
 
-    _response.reporters = [];
+    _response.valid_reporters = [];
     _response.reporter_reward_addresses = []
     // filter most common reporter
     for (const _report of _valid_reports) {
       const key = `${_each_reporter_result.get(_report.reporter)} | ${_report.nonce} | ${_report.chain_id}`;
       if (key === most_common_report.result) {
         _response.reporter_reward_addresses.push(_report.reward_address);
-        _response.reporters.push(_report.reporter);
+        _response.valid_reporters.push(_report.reporter);
       }
     }
 

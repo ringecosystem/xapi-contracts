@@ -125,12 +125,12 @@ export class ReporterRequired {
 
 export class Response {
   request_id: RequestId;
-  reporters: AccountId[];
+  valid_reporters: AccountId[];
   // EVM address to distribute rewards
   reporter_reward_addresses: string[];
   started_at: Timestamp;
   updated_at: Timestamp;
-  status: RequestStatus;
+  status: string;
   // Build in _publish
   call_data: string;
 
@@ -142,7 +142,7 @@ export class Response {
   constructor(request_id: RequestId) {
     this.request_id = request_id;
     this.started_at = near.blockTimestamp().toString();
-    this.status = RequestStatus.FETCHING;
+    this.status = RequestStatus[RequestStatus.FETCHING];
   }
 }
 
@@ -365,14 +365,14 @@ export abstract class Aggregator extends ContractBase {
     }
 
     // Update timeout status if necessary.
-    if (_response.status == RequestStatus.FETCHING && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
-      _response.status = RequestStatus.TIMEOUT;
+    if (_response.status == RequestStatus[RequestStatus.FETCHING] && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
+      _response.status = RequestStatus[RequestStatus.TIMEOUT];
       new TimeoutEvent(_response).emit();
     }
 
     // Only fetching request can accept reports.
     assert(
-      _response.status == RequestStatus.FETCHING,
+      _response.status == RequestStatus[RequestStatus.FETCHING],
       `The request status is ${_response.status}`
     );
 
@@ -422,7 +422,7 @@ export abstract class Aggregator extends ContractBase {
       near.log("try_aggregate: ", request_id);
       const _response = this.response_lookup.get(request_id);
       assert(
-        _response.status == RequestStatus.FETCHING,
+        _response.status == RequestStatus[RequestStatus.FETCHING],
         `The request status is ${_response.status}`
       );
       assert(this.staking_contract != null && this.staking_contract != "", "Staking contract cannot be null");
@@ -456,7 +456,7 @@ export abstract class Aggregator extends ContractBase {
     const _response = this.response_lookup.get(request_id);
     if (_response.result) {
       _response.updated_at = near.blockTimestamp().toString();
-      _response.status = RequestStatus.AGGREGATED;
+      _response.status = RequestStatus[RequestStatus.AGGREGATED];
       this.response_lookup.set(request_id, _response);
       new AggregatedEvent(_response).emit();
     }
@@ -467,7 +467,7 @@ export abstract class Aggregator extends ContractBase {
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
 
-    assert(_response.status == RequestStatus.AGGREGATED, `Response status is ${_response.status}, can't be published`);
+    assert(_response.status == RequestStatus[RequestStatus.AGGREGATED], `Response status is ${_response.status}, can't be published`);
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
@@ -536,7 +536,7 @@ export abstract class Aggregator extends ContractBase {
     near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}, promise_index: ${promise_index}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
-      _response.status = RequestStatus.PUBLISHED;
+      _response.status = RequestStatus[RequestStatus.PUBLISHED];
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
       new PublishEvent(new PublishData({
         request_id, response: _response, chain_config: _chain_config, signature: _result.result
