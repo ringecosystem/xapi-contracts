@@ -20,8 +20,7 @@ contract ConsumerExample is IXAPIConsumer{
 
     function makeRequest(string memory aggregator) external payable {
         string memory requestData = "{'hello':'world'}";
-        ReporterRequired memory reporterRequired = ReporterRequired(1, 1);
-        uint256 requestId = xapi.makeRequest{value: msg.value}(requestData, this.fulfillCallback.selector, aggregator, reporterRequired);
+        uint256 requestId = xapi.makeRequest{value: msg.value}(requestData, this.fulfillCallback.selector, aggregator);
         emit RequestMade(requestId, requestData);
     }
 
