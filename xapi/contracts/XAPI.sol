@@ -59,7 +59,7 @@ contract XAPI is IXAPI, Ownable2Step {
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += aggregatorConfig.perReporterFee;
         }
-        rewards[aggregatorConfig.fulfillAddress] += aggregatorConfig.publishFee;
+        rewards[aggregatorConfig.rewardAddress] += aggregatorConfig.publishFee;
 
         (bool success,) =
             request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));

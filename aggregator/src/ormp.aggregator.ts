@@ -31,7 +31,7 @@ class OrmpAggregator extends Aggregator {
   }
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
-    // filter invalid reporter
+    // 1. Filter invalid reports via top staked reporters
     const _reporters = this.report_lookup.get(request_id).map(r => r.reporter);
     const _valid_reporters = _reporters.filter(reporter =>
       top_staked.some(staked => staked.account_id === reporter)
@@ -42,16 +42,19 @@ class OrmpAggregator extends Aggregator {
 
     const _each_reporter_report = [];
     const _each_reporter_result = new Map<string, string>();
+
+    // 2. Aggregate from multi datasources of one report.
     _valid_reports.forEach(report => {
       const _result = this._aggregate_answer(report.answers.map(r => r.result)).result;
       _each_reporter_result.set(report.reporter, _result);
-      _each_reporter_report.push(`${_result} | ${report.nonce} | ${report.chain_id}`);
+      _each_reporter_report.push(_result);
     });
 
+    // 3. Aggregate from multi reports
     const most_common_report = this._aggregate_answer(_each_reporter_report);
     near.log("most_common_report: ", most_common_report);
 
-    const [result, nonce, chain_id] = most_common_report.result.split(' | ');
+    const result = most_common_report.result;
     assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
     assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
 
@@ -59,9 +62,9 @@ class OrmpAggregator extends Aggregator {
 
     _response.valid_reporters = [];
     _response.reporter_reward_addresses = []
-    // filter most common reporter
+    // 4. Filter most common reporter, only most common report will be rewarded
     for (const _report of _valid_reports) {
-      const key = `${_each_reporter_result.get(_report.reporter)} | ${_report.nonce} | ${_report.chain_id}`;
+      const key = _each_reporter_result.get(_report.reporter);
       if (key === most_common_report.result) {
         _response.reporter_reward_addresses.push(_report.reward_address);
         _response.valid_reporters.push(_report.reporter);
@@ -69,8 +72,6 @@ class OrmpAggregator extends Aggregator {
     }
 
     _response.result = result;
-    _response.nonce = nonce;
-    _response.chain_id = chain_id;
     this.response_lookup.set(request_id, _response);
     return true;
   }
@@ -103,13 +104,13 @@ class OrmpAggregator extends Aggregator {
   /// Calls
 
   @call({})
-  publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
-    return super._publish({ request_id, promise_index: 0 });
+  publish_external({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId; nonce: string; gas_limit: string; max_fee_per_gas: string; max_priority_fee_per_gas: string; }): NearPromise {
+    return super._publish({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas });
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id, promise_index }: { request_id: RequestId; promise_index: number; }): void {
-    super._publish_callback({ request_id, promise_index });
+  publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId; nonce: string; gas_limit: string; max_fee_per_gas: string; max_priority_fee_per_gas: string; }): void {
+    super._publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas });
   }
 
   @call({ privateFunction: true })
@@ -118,8 +119,8 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ payableFunction: true })
-  report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId; nonce: string; answers: Answer[]; reporter_required: ReporterRequired; reward_address: string }): NearPromise {
-    return super._report({ request_id, nonce, answers, reporter_required, reward_address });
+  report({ request_id, answers, reward_address }: { request_id: RequestId; answers: Answer[]; reward_address: string; }): NearPromise {
+    return super._report({ request_id, answers, reward_address });
   }
 
   @call({ payableFunction: true })

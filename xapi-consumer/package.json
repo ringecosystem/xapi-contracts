@@ -7,7 +7,7 @@
     "build": "npx hardhat compile",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/ConsumerExample.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
-    "verify": "npx hardhat verify --network sepolia 0xc6F64212F06F34e3d25bCb8D2C498387c46Fe7cb '0xC32BDE0002D71fD9a6C64eED65bdFD6e72F4Deba'"
+    "verify": "npx hardhat verify --network sepolia 0xcd3627925b1396104126Fa400715A01C09703D66 '0xcedBd5b942c37870D172fEF4FC1C568C0aB8c038'"
   },
   "dependencies": {
     "xapi": "file:../xapi"

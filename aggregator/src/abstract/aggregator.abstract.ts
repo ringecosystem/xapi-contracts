@@ -22,16 +22,10 @@ export enum RequestMethod {
 export class PublishChainConfig {
   chain_id: ChainId;
   xapi_address: string;
-  gas_limit: string;
-  max_fee_per_gas: string;
-  max_priority_fee_per_gas: string;
 
-  constructor({ chain_id, xapi_address, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { chain_id: ChainId, xapi_address: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }) {
+  constructor({ chain_id, xapi_address }: { chain_id: ChainId, xapi_address: string }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
-    this.gas_limit = gas_limit;
-    this.max_fee_per_gas = max_fee_per_gas;
-    this.max_priority_fee_per_gas = max_priority_fee_per_gas;
   }
 }
 
@@ -94,11 +88,20 @@ class PublishData {
   chain_config: PublishChainConfig;
   signature: string;
 
-  constructor({ request_id, response, chain_config, signature }: { request_id: RequestId, response: Response, chain_config: PublishChainConfig, signature: string }) {
+  nonce: string;
+  gas_limit: string;
+  max_fee_per_gas: string;
+  max_priority_fee_per_gas: string;
+
+  constructor({ request_id, response, chain_config, signature, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, response: Response, chain_config: PublishChainConfig, signature: string, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }) {
     this.request_id = request_id;
     this.response = response;
     this.chain_config = chain_config;
     this.signature = signature;
+    this.nonce = nonce;
+    this.gas_limit = gas_limit;
+    this.max_fee_per_gas = max_fee_per_gas;
+    this.max_priority_fee_per_gas = max_priority_fee_per_gas;
   }
 }
 
@@ -125,6 +128,7 @@ export class ReporterRequired {
 
 export class Response {
   request_id: RequestId;
+  chain_id: ChainId;
   valid_reporters: AccountId[];
   // EVM address to distribute rewards
   reporter_reward_addresses: string[];
@@ -136,8 +140,6 @@ export class Response {
 
   // 👇 These values should be aggregated from reporter's answer
   result: string;
-  nonce: string;
-  chain_id: ChainId;
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
@@ -150,19 +152,12 @@ export class Report {
   request_id: RequestId;
   reporter: AccountId;
   timestamp: Timestamp;
-  chain_id: ChainId;
   // Evm address to withdraw rewards on target chain 
   reward_address: string;
-  // Because cross-chain transactions may fail, we need to rely on the reporter to report nonce instead of maintaining the self-increment.
-  nonce: string;
-  reporter_required: ReporterRequired;
   answers: Answer[];
-  constructor({ request_id, chain_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, chain_id: ChainId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }) {
+  constructor({ request_id, answers, reward_address }: { request_id: RequestId, answers: Answer[], reward_address: string }) {
     this.request_id = request_id;
-    this.chain_id = chain_id;
-    this.nonce = nonce;
     this.answers = answers;
-    this.reporter_required = reporter_required;
     this.reward_address = reward_address;
     this.timestamp = near.blockTimestamp().toString();
     this.reporter = near.signerAccountId();
@@ -277,9 +272,6 @@ export abstract class Aggregator extends ContractBase {
   _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
     this._assert_operator();
     assert(publish_chain_config.chain_id != null, "chain_id can't be null.");
-    assert(publish_chain_config.gas_limit != null, "gas_limit can't be null.");
-    assert(publish_chain_config.max_fee_per_gas != null, "max_fee_per_gas can't be null.");
-    assert(publish_chain_config.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
     assert(publish_chain_config.xapi_address != null, "xapi_address can't be null.");
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id.toString(), publish_chain_config);
   }
@@ -324,21 +316,15 @@ export abstract class Aggregator extends ContractBase {
     return this.response_lookup.get(request_id);
   }
 
-  abstract report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }): NearPromise;
-  _report({ request_id, nonce, answers, reporter_required, reward_address }: { request_id: RequestId, nonce: string, answers: Answer[], reporter_required: ReporterRequired, reward_address: string }): NearPromise {
+  abstract report({ request_id, answers, reward_address }: { request_id: RequestId, answers: Answer[], reward_address: string }): NearPromise;
+  _report({ request_id, answers, reward_address }: { request_id: RequestId, answers: Answer[], reward_address: string }): NearPromise {
     assert(request_id != null, "request_id is null");
-    assert(nonce != null, "nonce is null");
     assert(answers != null && answers.length > 0, "answers is empty");
     assert(reward_address != null, "reward_address is null");
 
-    const _chain_id = (BigInt(request_id) >> BigInt(192)).toString();
-
     const __report = new Report({
       request_id,
-      chain_id: _chain_id,
-      nonce,
       answers,
-      reporter_required,
       reward_address
     });
 
@@ -368,6 +354,8 @@ export abstract class Aggregator extends ContractBase {
     if (_response.status == RequestStatus[RequestStatus.FETCHING] && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
       _response.status = RequestStatus[RequestStatus.TIMEOUT];
       new TimeoutEvent(_response).emit();
+      this.response_lookup.set(request_id, _response);
+      return;
     }
 
     // Only fetching request can accept reports.
@@ -462,13 +450,26 @@ export abstract class Aggregator extends ContractBase {
     }
   }
 
-  abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
-  _publish({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): NearPromise {
+  abstract publish_external({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }): NearPromise;
+  _publish({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }): NearPromise {
+    assert(nonce != null, "nonce can't be null.");
+    assert(gas_limit != null, "gas_limit can't be null.");
+    assert(max_fee_per_gas != null, "max_fee_per_gas can't be null.");
+    assert(max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
+
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
+    assert(_response.status == RequestStatus[RequestStatus.AGGREGATED] || _response.status == RequestStatus[RequestStatus.PUBLISHED], `Response status is ${_response.status}, can't be published`);
 
-    assert(_response.status == RequestStatus[RequestStatus.AGGREGATED], `Response status is ${_response.status}, can't be published`);
+    // Update timeout status if necessary.
+    if (BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
+      _response.status = RequestStatus[RequestStatus.TIMEOUT];
+      new TimeoutEvent(_response).emit();
+      this.response_lookup.set(request_id, _response);
+      return;
+    }
 
+    _response.chain_id = (BigInt(request_id) >> BigInt(192)).toString();
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
 
@@ -491,10 +492,10 @@ export abstract class Aggregator extends ContractBase {
 
     const payload = ethereumTransaction({
       chainId: BigInt(_response.chain_id),
-      nonce: BigInt(_response.nonce),
-      maxPriorityFeePerGas: BigInt(_chain_config.max_priority_fee_per_gas),
-      maxFeePerGas: BigInt(_chain_config.max_fee_per_gas),
-      gasLimit: BigInt(_chain_config.gas_limit),
+      nonce: BigInt(nonce),
+      maxPriorityFeePerGas: BigInt(max_priority_fee_per_gas),
+      maxFeePerGas: BigInt(max_fee_per_gas),
+      gasLimit: BigInt(gas_limit),
       to: _chain_config.xapi_address,
       value: BigInt(0),
       data: function_call_data_bytes,
@@ -521,7 +522,7 @@ export abstract class Aggregator extends ContractBase {
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "publish_callback",
-            JSON.stringify({ request_id: request_id, promise_index: promise_index }),
+            JSON.stringify({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
             BigInt(ONE_TERA_GAS * BigInt(25))
@@ -530,16 +531,17 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract publish_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void
-  _publish_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
-    const _result = this._promise_result({ promise_index: promise_index });
-    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}, promise_index: ${promise_index}`);
+  abstract publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }): void
+  _publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }): void {
+    const _result = this._promise_result({ promise_index: 0 });
+    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id.toString());
       new PublishEvent(new PublishData({
-        request_id, response: _response, chain_config: _chain_config, signature: _result.result
+        request_id, response: _response, chain_config: _chain_config, signature: _result.result,
+        nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas
       })).emit();
       this.response_lookup.set(request_id, _response);
     }
