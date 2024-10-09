@@ -463,9 +463,11 @@ export abstract class Aggregator extends ContractBase {
 
     // Update timeout status if necessary.
     if (BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
-      _response.status = RequestStatus[RequestStatus.TIMEOUT];
-      new TimeoutEvent(_response).emit();
-      this.response_lookup.set(request_id, _response);
+      if (_response.status == RequestStatus[RequestStatus.AGGREGATED]) {
+        _response.status = RequestStatus[RequestStatus.TIMEOUT];
+        new TimeoutEvent(_response).emit();
+        this.response_lookup.set(request_id, _response);
+      }
       return;
     }
 
