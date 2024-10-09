@@ -93,7 +93,6 @@ class PublishData {
   max_fee_per_gas: string;
   max_priority_fee_per_gas: string;
 
-
   constructor({ request_id, response, chain_config, signature, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId, response: Response, chain_config: PublishChainConfig, signature: string, nonce: string, gas_limit: string, max_fee_per_gas: string, max_priority_fee_per_gas: string }) {
     this.request_id = request_id;
     this.response = response;
@@ -129,6 +128,7 @@ export class ReporterRequired {
 
 export class Response {
   request_id: RequestId;
+  chain_id: ChainId;
   valid_reporters: AccountId[];
   // EVM address to distribute rewards
   reporter_reward_addresses: string[];
@@ -140,7 +140,6 @@ export class Response {
 
   // 👇 These values should be aggregated from reporter's answer
   result: string;
-  chain_id: ChainId;
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
@@ -355,6 +354,8 @@ export abstract class Aggregator extends ContractBase {
     if (_response.status == RequestStatus[RequestStatus.FETCHING] && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
       _response.status = RequestStatus[RequestStatus.TIMEOUT];
       new TimeoutEvent(_response).emit();
+      this.response_lookup.set(request_id, _response);
+      return;
     }
 
     // Only fetching request can accept reports.
