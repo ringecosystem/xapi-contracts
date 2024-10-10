@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, ChainId, DataSource, MpcConfig, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -104,13 +104,13 @@ class OrmpAggregator extends Aggregator {
   /// Calls
 
   @call({})
-  publish_external({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId; nonce: string; gas_limit: string; max_fee_per_gas: string; max_priority_fee_per_gas: string; }): NearPromise {
-    return super._publish({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas });
+  publish_external({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): NearPromise {
+    return super._publish({ request_id, mpc_options });
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas }: { request_id: RequestId; nonce: string; gas_limit: string; max_fee_per_gas: string; max_priority_fee_per_gas: string; }): void {
-    super._publish_callback({ request_id, nonce, gas_limit, max_fee_per_gas, max_priority_fee_per_gas });
+  publish_callback({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): void {
+    super._publish_callback({ request_id, mpc_options });
   }
 
   @call({ privateFunction: true })
@@ -121,6 +121,16 @@ class OrmpAggregator extends Aggregator {
   @call({ payableFunction: true })
   report({ request_id, answers, reward_address }: { request_id: RequestId; answers: Answer[]; reward_address: string; }): NearPromise {
     return super._report({ request_id, answers, reward_address });
+  }
+
+  @call({})
+  sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId; mpc_options: MpcOptions; }): NearPromise {
+    return super._sync_publish_config_to_remote({ chain_id, mpc_options });
+  }
+
+  @call({ privateFunction: true })
+  sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId; mpc_options: MpcOptions; call_data: Uint8Array; version: string; }): void {
+    return super._sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version });
   }
 
   @call({ payableFunction: true })
