@@ -2,9 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "xapi/contracts/interfaces/IXAPI.sol";
-import "./interfaces/IXAPIConsumer.sol";
 
-contract ConsumerExample is IXAPIConsumer{
+contract ConsumerExample {
     IXAPI public xapi;
 
     event RequestMade(uint256 requestId, string requestData);
