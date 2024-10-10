@@ -8,7 +8,7 @@
     "clear": "npx hardhat clean",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
-    "verify": "npx hardhat verify --network sepolia 0xcedBd5b942c37870D172fEF4FC1C568C0aB8c038",
+    "verify": "npx hardhat verify --network sepolia 0x6984ebE378F8cb815546Cb68a98807C1fA121A81",
     "test": "npx hardhat test"
   },
   "devDependencies": {
