@@ -10,7 +10,7 @@ struct Request {
     address callbackContract;
     bytes4 callbackFunction;
     RequestStatus status;
-    address fulfillAddress;
+    address exAggregator;
     ResponseData response;
     uint256 payment;
 }
@@ -27,7 +27,8 @@ struct ResponseData {
 }
 
 struct AggregatorConfig {
-    address fulfillAddress;
+    // Aggregator account on near
+    string aggregator;
     address rewardAddress;
     uint256 perReporterFee;
     uint256 publishFee;
@@ -40,15 +41,15 @@ interface IXAPI {
     event Fulfilled(uint256 indexed requestId, ResponseData response, RequestStatus indexed status);
     event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
     event AggregatorConfigSet(
-        string indexed aggregator,
+        address indexed exAggregator,
         uint256 perReporterFee,
         uint256 publishFee,
-        address fulfillAddress,
+        string aggregator,
         address rewardAddress
     );
-    event AggregatorSuspended(string indexed aggregator);
+    event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, string memory aggregator)
+    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
         external
         payable
         returns (uint256);
@@ -59,14 +60,14 @@ interface IXAPI {
 
     function withdrawRewards() external;
 
+    // Should be called by Aggregator mpc
     function setAggregatorConfig(
         string memory aggregator,
         uint256 perReporterFee,
         uint256 publishFee,
-        address fulfillAddress,
         address rewardAddress,
         uint8 quorum
     ) external;
 
-    function suspendAggregator(string memory aggregator) external;
+    function suspendAggregator() external;
 }

@@ -7,19 +7,19 @@ import "./interfaces/IXAPI.sol";
 contract XAPI is IXAPI, Ownable2Step {
     uint256 public requestCount;
     mapping(uint256 => Request) public requests;
-    mapping(string => AggregatorConfig) public aggregatorConfigs;
+    mapping(address => AggregatorConfig) public aggregatorConfigs;
     mapping(address => uint256) public rewards;
 
     constructor() Ownable(msg.sender) {}
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, string memory aggregator)
+    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
         external
         payable
         returns (uint256)
     {
         require(msg.sender != address(this), "CANT call self");
-        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[aggregator];
-        require(aggregatorConfig.fulfillAddress != address(0), "!Aggregator");
+        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[exAggregator];
+        require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
         uint256 feeRequired = aggregatorConfig.perReporterFee * aggregatorConfig.quorum + aggregatorConfig.publishFee;
@@ -33,24 +33,24 @@ contract XAPI is IXAPI, Ownable2Step {
             callbackFunction: callbackFunction,
             status: RequestStatus.Pending,
             payment: msg.value,
-            aggregator: aggregator,
-            fulfillAddress: aggregatorConfig.fulfillAddress,
+            aggregator: aggregatorConfig.aggregator,
+            exAggregator: exAggregator,
             response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
             requestData: requestData
         });
-        emit RequestMade(requestId, aggregator, requestData, msg.sender);
+        emit RequestMade(requestId, aggregatorConfig.aggregator, requestData, msg.sender);
         return requestId;
     }
 
     function fulfill(uint256 requestId, ResponseData memory response) external {
         Request storage request = requests[requestId];
         require(decodeChainId(requestId) == block.chainid, "!chainId");
-        require(msg.sender == request.fulfillAddress, "!Fulfill address");
+        require(msg.sender == request.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
 
         request.response = response;
 
-        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[request.aggregator];
+        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[msg.sender];
         // Avoid changing the reward configuration after the request but before the response to obtain the contract balance
         require(
             aggregatorConfig.publishFee + aggregatorConfig.perReporterFee * response.reporters.length <= request.payment,
@@ -96,12 +96,11 @@ contract XAPI is IXAPI, Ownable2Step {
         string memory aggregator,
         uint256 perReporterFee,
         uint256 publishFee,
-        address fulfillAddress,
         address rewardAddress,
         uint8 quorum
-    ) external onlyOwner {
-        aggregatorConfigs[aggregator] = AggregatorConfig({
-            fulfillAddress: fulfillAddress,
+    ) external {
+        aggregatorConfigs[msg.sender] = AggregatorConfig({
+            aggregator: aggregator,
             perReporterFee: perReporterFee,
             publishFee: publishFee,
             rewardAddress: rewardAddress,
@@ -109,13 +108,14 @@ contract XAPI is IXAPI, Ownable2Step {
             suspended: false
         });
 
-        emit AggregatorConfigSet(aggregator, perReporterFee, publishFee, fulfillAddress, rewardAddress);
+        emit AggregatorConfigSet(msg.sender, perReporterFee, publishFee, aggregator, rewardAddress);
     }
 
-    function suspendAggregator(string memory aggregator) external onlyOwner {
-        aggregatorConfigs[aggregator].suspended = true;
+    function suspendAggregator() external {
+        require(aggregatorConfigs[msg.sender].rewardAddress != address(0), "!Aggregator");
+        aggregatorConfigs[msg.sender].suspended = true;
 
-        emit AggregatorSuspended(aggregator);
+        emit AggregatorSuspended(msg.sender, aggregatorConfigs[msg.sender].aggregator);
     }
 
     function encodeRequestId(uint256 count) internal view returns (uint256) {

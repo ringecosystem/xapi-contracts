@@ -29,30 +29,24 @@ describe("XAPI", function () {
   describe("Aggregator Configuration", function () {
     it("Should set aggregator config correctly", async function () {
       const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, owner.address, 5);
-      const config = await xapi.aggregatorConfigs("testAggregator");
-      expect(config.fulfillAddress).to.equal(owner.address);
+      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
+      const config = await xapi.aggregatorConfigs(owner.address);
+      expect(config.aggregator).to.equal("testAggregator");
       expect(config.perReporterFee).to.equal(100);
       expect(config.publishFee).to.equal(1000);
       expect(config.suspended).to.be.false;
-    });
-
-    it("Should only allow owner to set aggregator config", async function () {
-      const { xapi, otherAccount } = await loadFixture(deployXAPIFixture);
-      await expect(xapi.connect(otherAccount).setAggregatorConfig("testAggregator", 100, 1000, owner.address, owner.address, 5))
-        .to.be.reverted;
     });
   });
 
   describe("Make Request", function () {
     it("Should create a new request", async function () {
       const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, owner.address, 5);
+      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
       const requestData = "test data";
       const callbackFunction = "0x12345678";
       const requestFee = 1500; // 5 * 100 + 1000
 
-      await expect(xapi.makeRequest(requestData, callbackFunction, "testAggregator", { value: requestFee }))
+      await expect(xapi.makeRequest(requestData, callbackFunction, owner.address, { value: requestFee }))
         .to.emit(xapi, "RequestMade")
         .withArgs(anyValue, "testAggregator", requestData, owner.address);
     });
@@ -62,11 +56,11 @@ describe("XAPI", function () {
     it("Should fulfill a request", async function () {
       const { xapi, owner } = await loadFixture(deployXAPIFixture);
       // Setup and make a request first
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, owner.address, 5);
+      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
       const requestData = "test data";
       const callbackFunction = "0x12345678";
       const requestFee = 1500;
-      await xapi.makeRequest(requestData, callbackFunction, "testAggregator", { value: requestFee });
+      await xapi.makeRequest(requestData, callbackFunction, owner.address, { value: requestFee });
 
       const chainId = await ethers.provider.getNetwork().then(n => n.chainId);
       const requestId = encodeRequestId(chainId, 1);
