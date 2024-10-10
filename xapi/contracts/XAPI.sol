@@ -22,7 +22,7 @@ contract XAPI is IXAPI, Ownable2Step {
         require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
-        uint256 feeRequired = aggregatorConfig.perReporterFee * aggregatorConfig.quorum + aggregatorConfig.publishFee;
+        uint256 feeRequired = aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
         require(msg.value >= feeRequired, "Insufficient fees");
 
         requestCount++;
@@ -53,11 +53,11 @@ contract XAPI is IXAPI, Ownable2Step {
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[msg.sender];
         // Avoid changing the reward configuration after the request but before the response to obtain the contract balance
         require(
-            aggregatorConfig.publishFee + aggregatorConfig.perReporterFee * response.reporters.length <= request.payment,
+            aggregatorConfig.publishFee + aggregatorConfig.reportersFee <= request.payment,
             "Insufficient rewards"
         );
         for (uint256 i = 0; i < response.reporters.length; i++) {
-            rewards[response.reporters[i]] += aggregatorConfig.perReporterFee;
+            rewards[response.reporters[i]] += aggregatorConfig.reportersFee / response.reporters.length;
         }
         rewards[aggregatorConfig.rewardAddress] += aggregatorConfig.publishFee;
 
@@ -94,28 +94,26 @@ contract XAPI is IXAPI, Ownable2Step {
 
     function setAggregatorConfig(
         string memory aggregator,
-        uint256 perReporterFee,
+        uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress,
-        uint8 quorum
+        address rewardAddress
     ) external {
         aggregatorConfigs[msg.sender] = AggregatorConfig({
             aggregator: aggregator,
-            perReporterFee: perReporterFee,
+            reportersFee: reportersFee,
             publishFee: publishFee,
             rewardAddress: rewardAddress,
-            quorum: quorum,
             suspended: false
         });
 
-        emit AggregatorConfigSet(msg.sender, perReporterFee, publishFee, aggregator, rewardAddress);
+        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress);
     }
 
-    function suspendAggregator() external {
-        require(aggregatorConfigs[msg.sender].rewardAddress != address(0), "!Aggregator");
-        aggregatorConfigs[msg.sender].suspended = true;
+    function suspendAggregator(address exAggregator) external onlyOwner{
+        require(aggregatorConfigs[exAggregator].rewardAddress != address(0), "!Aggregator");
+        aggregatorConfigs[exAggregator].suspended = true;
 
-        emit AggregatorSuspended(msg.sender, aggregatorConfigs[msg.sender].aggregator);
+        emit AggregatorSuspended(exAggregator, aggregatorConfigs[exAggregator].aggregator);
     }
 
     function encodeRequestId(uint256 count) internal view returns (uint256) {

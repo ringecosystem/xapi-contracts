@@ -30,9 +30,8 @@ struct AggregatorConfig {
     // Aggregator account on near
     string aggregator;
     address rewardAddress;
-    uint256 perReporterFee;
+    uint256 reportersFee;
     uint256 publishFee;
-    uint8 quorum;
     bool suspended;
 }
 
@@ -42,7 +41,7 @@ interface IXAPI {
     event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
     event AggregatorConfigSet(
         address indexed exAggregator,
-        uint256 perReporterFee,
+        uint256 reportersFee,
         uint256 publishFee,
         string aggregator,
         address rewardAddress
@@ -63,11 +62,10 @@ interface IXAPI {
     // Should be called by Aggregator mpc
     function setAggregatorConfig(
         string memory aggregator,
-        uint256 perReporterFee,
+        uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress,
-        uint8 quorum
+        address rewardAddress
     ) external;
 
-    function suspendAggregator() external;
+    function suspendAggregator(address exAggregator) external;
 }
