@@ -109,8 +109,8 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): void {
-    super._publish_callback({ request_id, mpc_options });
+  publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId; mpc_options: MpcOptions, call_data: string }): void {
+    super._publish_callback({ request_id, mpc_options, call_data });
   }
 
   @call({ privateFunction: true })
@@ -129,7 +129,7 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ privateFunction: true })
-  sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId; mpc_options: MpcOptions; call_data: Uint8Array; version: string; }): void {
+  sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId; mpc_options: MpcOptions; call_data: string; version: string; }): void {
     return super._sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version });
   }
 

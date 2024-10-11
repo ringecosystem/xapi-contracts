@@ -93,13 +93,15 @@ class ReportEvent extends Nep297Event {
 class PublishData {
   request_id: RequestId;
   response: Response;
+  call_data: string;
   chain_config: PublishChainConfig;
   signature: string;
   mpc_options: MpcOptions;
 
-  constructor({ request_id, response, chain_config, signature, mpc_options }: { request_id: RequestId, response: Response, chain_config: PublishChainConfig, signature: string, mpc_options: MpcOptions }) {
+  constructor({ request_id, response, call_data, chain_config, signature, mpc_options }: { request_id: RequestId, response: Response, call_data: string, chain_config: PublishChainConfig, signature: string, mpc_options: MpcOptions }) {
     this.request_id = request_id;
     this.response = response;
+    this.call_data = call_data;
     this.chain_config = chain_config;
     this.signature = signature;
     this.mpc_options = mpc_options;
@@ -128,10 +130,10 @@ class SyncPublishChainConfigData {
   chain_id: ChainId;
   xapi_address: string;
   version: string;
-  call_data: Uint8Array;
+  call_data: string;
   signature: string;
   mpc_options: MpcOptions;
-  constructor({ chain_id, xapi_address, version, call_data, signature, mpc_options }: { chain_id: ChainId, xapi_address: string, version: string, call_data: Uint8Array, signature: string, mpc_options: MpcOptions }) {
+  constructor({ chain_id, xapi_address, version, call_data, signature, mpc_options }: { chain_id: ChainId, xapi_address: string, version: string, call_data: string, signature: string, mpc_options: MpcOptions }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.version = version;
@@ -165,8 +167,6 @@ export class Response {
   started_at: Timestamp;
   updated_at: Timestamp;
   status: string;
-  // Build in _publish
-  call_data: string;
 
   // 👇 These values should be aggregated from reporter's answer
   result: string;
@@ -380,8 +380,8 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: Uint8Array, version: string }): void;
-  _sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: Uint8Array, version: string }): void {
+  abstract sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): void;
+  _sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): void {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`sync_publish_config_to_remote_callback ${chain_id}, ${_result.success}, ${_result.result}, version: ${version}`);
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
@@ -609,7 +609,6 @@ export abstract class Aggregator extends ContractBase {
         ]
       ]
     })
-    _response.call_data = function_call_data;
     near.log("functionCallData", function_call_data);
 
     const function_call_data_bytes = hexToBytes(function_call_data);
@@ -656,8 +655,8 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract publish_callback({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): void
-  _publish_callback({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): void {
+  abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void
+  _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
     const _response = this.response_lookup.get(request_id);
@@ -666,7 +665,7 @@ export abstract class Aggregator extends ContractBase {
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
       new PublishEvent(new PublishData({
         request_id, response: _response, chain_config: _chain_config, signature: _result.result,
-        mpc_options
+        mpc_options, call_data
       })).emit();
       this.response_lookup.set(request_id, _response);
     }
