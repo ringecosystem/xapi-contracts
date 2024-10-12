@@ -371,7 +371,7 @@ export abstract class Aggregator extends ContractBase {
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "sync_publish_config_to_remote_callback",
-            JSON.stringify({ chain_id, mpc_options, call_data: function_call_data_bytes, version: _latest_config.version }),
+            JSON.stringify({ chain_id, mpc_options, call_data: function_call_data, version: _latest_config.version }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
             BigInt(ONE_TERA_GAS * BigInt(25))
@@ -569,6 +569,7 @@ export abstract class Aggregator extends ContractBase {
 
     const _response = this.response_lookup.get(request_id);
     if (_response.result) {
+      _response.chain_id = (BigInt(request_id) >> BigInt(192)).toString();
       _response.updated_at = near.blockTimestamp().toString();
       _response.status = RequestStatus[RequestStatus.AGGREGATED];
       this.response_lookup.set(request_id, _response);
@@ -594,7 +595,6 @@ export abstract class Aggregator extends ContractBase {
       return;
     }
 
-    _response.chain_id = (BigInt(request_id) >> BigInt(192)).toString();
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
 
@@ -646,7 +646,7 @@ export abstract class Aggregator extends ContractBase {
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "publish_callback",
-            JSON.stringify({ request_id, mpc_options }),
+            JSON.stringify({ request_id, mpc_options, call_data: function_call_data }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
             BigInt(ONE_TERA_GAS * BigInt(25))
@@ -658,7 +658,7 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void
   _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void {
     const _result = this._promise_result({ promise_index: 0 });
-    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
+    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}, call_data: ${call_data}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
