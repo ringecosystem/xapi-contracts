@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "../../../common/src/standard.abstract";
-import { encodeFunctionCall, ethereumTransaction, hexToBytes } from "../lib/ethereum";
+import { encodeSetConfigCall, encodePublishCall, ethereumTransaction, hexToBytes, stringToBytes } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
 import { sizeOf } from "../lib/helper";
 
@@ -328,10 +328,10 @@ export abstract class Aggregator extends ContractBase {
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
-    const function_call_data = encodeFunctionCall({
+    const function_call_data = encodeSetConfigCall({
       functionSignature: "setAggregatorConfig(string,uint256,uint256,address)",
       params: [
-        near.currentAccountId,
+        near.currentAccountId(),
         BigInt(_latest_config.reporters_fee),
         BigInt(_latest_config.publish_fee),
         _latest_config.xapi_address
@@ -599,13 +599,13 @@ export abstract class Aggregator extends ContractBase {
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
 
     // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
-    const function_call_data = encodeFunctionCall({
-      functionSignature: "fulfill(uint256,tuple(address[],bytes))",
+    const function_call_data = encodePublishCall({
+      functionSignature: "fulfill(uint256,(address[],bytes))",
       params: [
         BigInt(request_id),
         [
           _response.reporter_reward_addresses,
-          _response.result
+          stringToBytes(_response.result)
         ]
       ]
     })

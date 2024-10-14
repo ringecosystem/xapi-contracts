@@ -88,3 +88,13 @@ test('report 11', async (t) => {
   console.log("response", response);
   t.is(response.result, 'test-result');
 });
+
+test('encodePublishCall', async (t)=>{
+  const { contract, root } = t.context.accounts;
+  await contract.call(contract, 'test_publish_encode', {});
+})
+
+test('encodeSyncConfigCall', async (t)=>{
+  const { contract, root } = t.context.accounts;
+  await contract.call(contract, 'test_sync_config_encode', {});
+})

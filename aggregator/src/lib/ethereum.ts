@@ -108,7 +108,20 @@ export function encodeParameter(type: string, value: any) {
         return toHexString(BigInt(value)).slice(2).padStart(64, '0');
     } else if (type === 'bytes32') {
         return value.slice(2).padStart(64, '0');
+    } else if (type === 'address') {
+        return value.toLowerCase().slice(2).padStart(64, '0');
+    } else if (type === 'bytes') {
+        const encodedValue = toHexString(value).slice(2);
+        near.log(`encode bytes: ${encodedValue}, value: ${value}`)
+        const lengthHex = (encodedValue.length / 2).toString(16);
+        const paddedLength = lengthHex.padStart(64, '0');
+
+        const remainder = encodedValue.length % 64;
+        const paddingSize = remainder === 0 ? 0 : (64 - remainder);
+        const paddedEncodedValue = encodedValue.padEnd(encodedValue.length + paddingSize, '0');
+        return paddedLength + paddedEncodedValue;
     }
+    near.log(`Encode calldata, Unsupported type: ${type}, value: ${value}`)
 }
 
 export function getFunctionSelector(functionSignature: string) {
@@ -127,4 +140,60 @@ export function encodeFunctionCall({ functionSignature, params }: { functionSign
     }).join('');
     // near.log("encodedParams", encodedParams);
     return selector + encodedParams;
+}
+
+export function encodePublishCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
+    const selector = getFunctionSelector(functionSignature);
+    near.log(`selector: ${selector}`)
+
+    // encode address[]
+    const addressesParams = params[1][0];
+    const addresses = addressesParams.map((addr: string) => encodeParameter('address', addr)).join('');
+    const addressesLength = (addressesParams.length).toString(16).padStart(64, '0');
+    const addressesData = addressesLength + addresses;
+
+    // encode bytes
+    const bytesParams = params[1][1]
+    const bytesValue = encodeParameter('bytes', bytesParams);
+
+    // offset
+    const offsetTuple = (64).toString(16).padStart(64, '0');
+    const offsetAddresses = (64).toString(16).padStart(64, '0');
+    const offsetBytes = ((64 + addressesData.length / 2).toString(16)).padStart(64, '0');
+
+    const encodeParams = [
+        encodeParameter("uint256", params[0]),
+        offsetTuple,
+        offsetAddresses,
+        offsetBytes,
+        addressesData,
+        bytesValue
+    ].join('');
+    return selector + encodeParams;
+}
+
+export function encodeSetConfigCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
+    const selector = getFunctionSelector(functionSignature);
+    near.log(`selector: ${selector}`)
+
+    // Aggregator account string offset
+    const offsetString = (128).toString(16).padStart(64, '0');
+
+    const encodeParams = [
+        offsetString,
+        encodeParameter("uint256", params[1]),
+        encodeParameter("uint256", params[2]),
+        encodeParameter("address", params[3]),
+        encodeParameter("bytes", stringToBytes(params[0]))
+    ].join('');
+    return selector + encodeParams;
+}
+
+export function stringToBytes(str: string): string {
+    const bytes: number[] = [];
+    for (let i = 0; i < str.length; i++) {
+        bytes.push(str.charCodeAt(i));
+    }
+    near.log(`bytes: ${bytes}, string: ${str}`);
+    return '0x' + bytes.map(byte => ('0' + byte.toString(16)).slice(-2)).join('');
 }

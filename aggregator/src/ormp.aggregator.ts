@@ -2,6 +2,7 @@
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
+import { encodeSetConfigCall, encodePublishCall, stringToBytes } from "./lib/ethereum";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator {
@@ -20,6 +21,39 @@ class OrmpAggregator extends Aggregator {
         standards: [new Standard("nep330", "1.1.0"), new Standard("nep297", "1.0.0")]
       })
     });
+  }
+
+  // todo remove
+  @call({})
+  test_publish_encode(): void {
+    near.log("enter");
+    const function_call_data = encodePublishCall({
+      functionSignature: "fulfill(uint256,(address[],bytes))",
+      params: [
+        BigInt("70021766616531051842153016788507494922593962344450640499185811457"),
+        [
+          ["0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85", "0xF29Ff96aaEa6C9A1fBa851f74737f3c069d4f1a9"],
+          stringToBytes("Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur")
+        ]
+      ]
+    })
+    near.log("functionCallData", function_call_data);
+  }
+
+  // todo remove
+  @call({})
+  test_sync_config_encode(): void {
+    near.log("enter");
+    const function_call_data = encodeSetConfigCall({
+      functionSignature: "setAggregatorConfig(string,uint256,uint256,address)",
+      params: [
+        "ormpaggregator.guantong.testnet",
+        BigInt("100"),
+        BigInt("200"),
+        "0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85"
+      ]
+    })
+    near.log("functionCallData", function_call_data);
   }
 
   _assert_operator(): void {
