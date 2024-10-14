@@ -337,10 +337,9 @@ export abstract class Aggregator extends ContractBase {
         _latest_config.xapi_address
       ]
     })
-    near.log("functionCallData", function_call_data);
+    // near.log("functionCallData", function_call_data);
 
     const function_call_data_bytes = hexToBytes(function_call_data);
-    near.log("bytes functionCallData", Array.from(function_call_data_bytes));
 
     const payload = ethereumTransaction({
       chainId: BigInt(chain_id),
@@ -354,7 +353,7 @@ export abstract class Aggregator extends ContractBase {
       accessList: []
     });
     const payload_arr = Array.from(payload);
-    near.log("payload_arr", payload_arr);
+    // near.log("payload_arr", payload_arr);
 
     const mpc_args = {
       "request": {
@@ -374,7 +373,7 @@ export abstract class Aggregator extends ContractBase {
             JSON.stringify({ chain_id, mpc_options, call_data: function_call_data, version: _latest_config.version }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
-            BigInt(ONE_TERA_GAS * BigInt(25))
+            BigInt(near.prepaidGas() - near.usedGas() - ONE_TERA_GAS * BigInt(255))
           )
       );
     return promise.asReturn();
@@ -592,6 +591,7 @@ export abstract class Aggregator extends ContractBase {
         new TimeoutEvent(_response).emit();
         this.response_lookup.set(request_id, _response);
       }
+      near.log(`Request ${request_id} is timeout.`);
       return;
     }
 
@@ -609,10 +609,9 @@ export abstract class Aggregator extends ContractBase {
         ]
       ]
     })
-    near.log("functionCallData", function_call_data);
+    // near.log("functionCallData", function_call_data);
 
     const function_call_data_bytes = hexToBytes(function_call_data);
-    near.log("bytes functionCallData", Array.from(function_call_data_bytes));
 
     const payload = ethereumTransaction({
       chainId: BigInt(_response.chain_id),
@@ -626,7 +625,7 @@ export abstract class Aggregator extends ContractBase {
       accessList: []
     });
     const payload_arr = Array.from(payload);
-    near.log("payload_arr", payload_arr);
+    // near.log("payload_arr", payload_arr);
     // 215,91,147,81,5,211,171,61,184,185,105,11,93,160,46,31,46,184,4,159,21,167,69,34,35,91,31,56,138,152,163,51
 
     const mpc_args = {
@@ -649,7 +648,7 @@ export abstract class Aggregator extends ContractBase {
             JSON.stringify({ request_id, mpc_options, call_data: function_call_data }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
-            BigInt(ONE_TERA_GAS * BigInt(25))
+            BigInt(near.prepaidGas() - near.usedGas() - ONE_TERA_GAS * BigInt(255))
           )
       );
     return promise.asReturn();
@@ -658,7 +657,7 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void
   _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void {
     const _result = this._promise_result({ promise_index: 0 });
-    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}, call_data: ${call_data}`);
+    near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];

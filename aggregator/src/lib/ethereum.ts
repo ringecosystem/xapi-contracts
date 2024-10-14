@@ -95,7 +95,7 @@ export function ethereumTransaction({
     const messageToSign = new Uint8Array(rlpEncodedBytes.length + 1);
     messageToSign[0] = EIP_1559_TYPE;
     messageToSign.set(rlpEncodedBytes, 1);
-    near.log("messageToSign", Array.from(messageToSign))
+    // near.log("messageToSign", Array.from(messageToSign))
 
     // GetHashedMessageToSign: Implement https://github.com/ethereumjs/ethereumjs-monorepo/blob/master/packages/tx/src/capabilities/eip2718.ts#L12
     return near.keccak256(messageToSign);
@@ -112,7 +112,7 @@ export function encodeParameter(type: string, value: any) {
         return value.toLowerCase().slice(2).padStart(64, '0');
     } else if (type === 'bytes') {
         const encodedValue = toHexString(value).slice(2);
-        near.log(`encode bytes: ${encodedValue}, value: ${value}`)
+        // near.log(`encode bytes: ${encodedValue}, value: ${value}`)
         const lengthHex = (encodedValue.length / 2).toString(16);
         const paddedLength = lengthHex.padStart(64, '0');
 
@@ -121,7 +121,7 @@ export function encodeParameter(type: string, value: any) {
         const paddedEncodedValue = encodedValue.padEnd(encodedValue.length + paddingSize, '0');
         return paddedLength + paddedEncodedValue;
     }
-    near.log(`Encode calldata, Unsupported type: ${type}, value: ${value}`)
+    // near.log(`Encode calldata, Unsupported type: ${type}, value: ${value}`)
 }
 
 export function getFunctionSelector(functionSignature: string) {
@@ -132,19 +132,9 @@ export function getFunctionSelector(functionSignature: string) {
     return hexStr;
 }
 
-export function encodeFunctionCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
-    const selector = getFunctionSelector(functionSignature);
-    const encodedParams = params.map((param, index) => {
-        const type = functionSignature.split('(')[1].split(')')[0].split(',')[index].trim();
-        return encodeParameter(type, param);
-    }).join('');
-    // near.log("encodedParams", encodedParams);
-    return selector + encodedParams;
-}
-
 export function encodePublishCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
     const selector = getFunctionSelector(functionSignature);
-    near.log(`selector: ${selector}`)
+    // near.log(`selector: ${selector}`)
 
     // encode address[]
     const addressesParams = params[1][0];
@@ -174,7 +164,7 @@ export function encodePublishCall({ functionSignature, params }: { functionSigna
 
 export function encodeSetConfigCall({ functionSignature, params }: { functionSignature: string, params: any[] }): string {
     const selector = getFunctionSelector(functionSignature);
-    near.log(`selector: ${selector}`)
+    // near.log(`selector: ${selector}`)
 
     // Aggregator account string offset
     const offsetString = (128).toString(16).padStart(64, '0');
@@ -194,6 +184,6 @@ export function stringToBytes(str: string): string {
     for (let i = 0; i < str.length; i++) {
         bytes.push(str.charCodeAt(i));
     }
-    near.log(`bytes: ${bytes}, string: ${str}`);
+    // near.log(`bytes: ${bytes}, string: ${str}`);
     return '0x' + bytes.map(byte => ('0' + byte.toString(16)).slice(-2)).join('');
 }

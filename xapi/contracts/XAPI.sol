@@ -45,6 +45,7 @@ contract XAPI is IXAPI, Ownable2Step {
     function fulfill(uint256 requestId, ResponseData memory response) external {
         Request storage request = requests[requestId];
         require(decodeChainId(requestId) == block.chainid, "!chainId");
+        require(request.exAggregator != address(0), "!Request");
         require(msg.sender == request.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
 
@@ -120,7 +121,7 @@ contract XAPI is IXAPI, Ownable2Step {
         return (block.chainid << 192) | count;
     }
 
-    function decodeChainId(uint256 requestId) public pure returns (uint256) {
+    function decodeChainId(uint256 requestId) internal pure returns (uint256) {
         return requestId >> 192;
     }
 }
