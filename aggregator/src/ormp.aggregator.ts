@@ -1,8 +1,7 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
-import { encodeSetConfigCall, encodePublishCall, stringToBytes } from "./lib/ethereum";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator {
@@ -110,13 +109,13 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId; mpc_options: MpcOptions, call_data: string }): void {
-    super._publish_callback({ request_id, mpc_options, call_data });
+  publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId; mpc_options: MpcOptions, call_data: string }): PublishData {
+    return super._publish_callback({ request_id, mpc_options, call_data });
   }
 
   @call({ privateFunction: true })
-  post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
-    super._post_aggregate_callback({ request_id, promise_index });
+  post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): Response {
+    return super._post_aggregate_callback({ request_id, promise_index });
   }
 
   @call({ payableFunction: true })

@@ -90,7 +90,7 @@ class ReportEvent extends Nep297Event {
   }
 }
 
-class PublishData {
+export class PublishData {
   request_id: RequestId;
   response: Response;
   call_data: string;
@@ -218,7 +218,7 @@ export class Staked {
   account_id: AccountId
 }
 
-// Default timeout: 2 hours
+// Default timeout: 5 hours
 const DEFAULT_TIME_OUT = "18000000000000";
 
 // Derivation path prefix for mpc
@@ -558,8 +558,8 @@ export abstract class Aggregator extends ContractBase {
     }
   }
 
-  abstract post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void;
-  _post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): void {
+  abstract post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): Response;
+  _post_aggregate_callback({ request_id, promise_index }: { request_id: RequestId, promise_index: number }): Response {
     const _result = this._promise_result({ promise_index: promise_index });
     near.log(`post_aggregate_callback ${request_id}, ${_result.success}, ${_result.result} promise_index: ${promise_index}`);
     const _top_staked: Staked[] = JSON.parse(_result.result);
@@ -573,6 +573,7 @@ export abstract class Aggregator extends ContractBase {
       _response.status = RequestStatus[RequestStatus.AGGREGATED];
       this.response_lookup.set(request_id, _response);
       new AggregatedEvent(_response).emit();
+      return _response;
     }
   }
 
@@ -654,19 +655,21 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void
-  _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): void {
+  abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): PublishData
+  _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): PublishData {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
     const _response = this.response_lookup.get(request_id);
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
-      new PublishEvent(new PublishData({
+      const _publish_data = new PublishData({
         request_id, response: _response, chain_config: _chain_config, signature: _result.result,
         mpc_options, call_data
-      })).emit();
+      })
+      new PublishEvent(_publish_data).emit();
       this.response_lookup.set(request_id, _response);
+      return _publish_data;
     }
   }
 
