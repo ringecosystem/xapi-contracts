@@ -40,13 +40,13 @@ export class PublishChainConfig {
 export class DataSource {
   name: string;
   url: string;
-  method: RequestMethod;
+  method: string;
   headers: Object;
   body_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
 
-  constructor({ name, url, method, headers, body_json, result_path }: { name: string, url: string, method: RequestMethod, headers: Object, body_json: Object, result_path: string }) {
+  constructor({ name, url, method, headers, body_json, result_path }: { name: string, url: string, method: string, headers: Object, body_json: Object, result_path: string }) {
     this.name = name;
     this.url = url;
     this.method = method;
@@ -507,6 +507,22 @@ export abstract class Aggregator extends ContractBase {
     assert(data_source.method != null, "Datasource method is null");
     assert(data_source.url != null, "Datasource url is null");
     assert(data_source.result_path != null, "Datasource result_path is null")
+
+    const checkMethod = data_source.method.toString();
+    if (checkMethod.toUpperCase() == "GET") {
+      data_source.method = RequestMethod[RequestMethod.GET];
+    } else if (checkMethod.toUpperCase() == "POST") {
+      data_source.method = RequestMethod[RequestMethod.POST];
+    } else {
+      assert(false, "method should be POST or GET");
+    }
+
+    if (data_source.headers) {
+      assert(typeof data_source.headers == "object", "headers must be object");
+    }
+    if (data_source.body_json) {
+      assert(typeof data_source.body_json == "object", "body_json must be object");
+    }
 
     assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
     this.data_sources.set(data_source.name, data_source);
