@@ -325,6 +325,8 @@ export abstract class Aggregator extends ContractBase {
   abstract sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise;
   _sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
+    assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
+
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
@@ -596,6 +598,7 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_external({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise;
   _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
+    assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
