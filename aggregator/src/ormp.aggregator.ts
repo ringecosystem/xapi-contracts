@@ -9,7 +9,7 @@ class OrmpAggregator extends Aggregator {
 
   constructor() {
     super({
-      description: "ORMP Aggregator", timeout: null,
+      description: "ORMP Aggregator",
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24).toString() }),
       reporter_required: new ReporterRequired(1, 1),
       // todo update staking contract
@@ -149,11 +149,6 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({})
-  set_timeout({ timeout }: { timeout: Timestamp; }): void {
-    super._set_timeout({ timeout })
-  }
-
-  @call({})
   set_mpc_config(mpc_config: MpcConfig): void {
     super._set_mpc_config(mpc_config);
   }
@@ -189,10 +184,6 @@ class OrmpAggregator extends Aggregator {
   @view({})
   get_reports({ request_id }: { request_id: RequestId; }): Report[] {
     return super._get_reports({ request_id });
-  }
-  @view({})
-  get_timeout(): Timestamp {
-    return super._get_timeout();
   }
   @view({})
   get_publish_chain_config({ chain_id }: { chain_id: ChainId; }): PublishChainConfig {

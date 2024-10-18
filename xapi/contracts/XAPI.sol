@@ -38,7 +38,15 @@ contract XAPI is IXAPI, Ownable2Step {
             response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
             requestData: requestData
         });
-        emit RequestMade(requestId, aggregatorConfig.aggregator, requestData, msg.sender);
+        emit RequestMade(
+            requestId,
+            aggregatorConfig.aggregator,
+            requestData,
+            msg.sender,
+            exAggregator,
+            aggregatorConfig.reportersFee,
+            aggregatorConfig.publishFee
+        );
         return requestId;
     }
 
@@ -53,10 +61,7 @@ contract XAPI is IXAPI, Ownable2Step {
 
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[msg.sender];
         // Avoid changing the reward configuration after the request but before the response to obtain the contract balance
-        require(
-            aggregatorConfig.publishFee + aggregatorConfig.reportersFee <= request.payment,
-            "Insufficient rewards"
-        );
+        require(aggregatorConfig.publishFee + aggregatorConfig.reportersFee <= request.payment, "Insufficient rewards");
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += aggregatorConfig.reportersFee / response.reporters.length;
         }
@@ -110,7 +115,7 @@ contract XAPI is IXAPI, Ownable2Step {
         emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress);
     }
 
-    function suspendAggregator(address exAggregator) external onlyOwner{
+    function suspendAggregator(address exAggregator) external onlyOwner {
         require(aggregatorConfigs[exAggregator].rewardAddress != address(0), "!Aggregator");
         aggregatorConfigs[exAggregator].suspended = true;
 

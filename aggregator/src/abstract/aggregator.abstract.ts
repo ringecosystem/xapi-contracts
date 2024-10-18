@@ -11,7 +11,6 @@ export enum RequestStatus {
   FETCHING,
   AGGREGATED,
   PUBLISHED,
-  TIMEOUT,
 }
 
 export enum RequestMethod {
@@ -95,12 +94,6 @@ class AddDataSourceEvent extends Nep297Event {
 class RemoveDataSourceEvent extends Nep297Event {
   constructor(data: DataSource) {
     super("RemoveDataSource", data)
-  }
-}
-
-class TimeoutEvent extends Nep297Event {
-  constructor(data: Response) {
-    super("Timeout", data)
   }
 }
 
@@ -238,17 +231,12 @@ export class Staked {
   account_id: AccountId
 }
 
-// Default timeout: 5 hours
-const DEFAULT_TIME_OUT = "18000000000000";
-
 // Derivation path prefix for mpc
 const DERIVATION_PATH_PREFIX = "XAPI";
 
 export abstract class Aggregator extends ContractBase {
   description: string;
   latest_request_id: RequestId;
-  // Nanoseconds
-  timeout: Timestamp;
 
   mpc_config: MpcConfig;
   staking_contract: AccountId;
@@ -263,18 +251,12 @@ export abstract class Aggregator extends ContractBase {
   // key: chain_id
   publish_chain_config_lookup: LookupMap<PublishChainConfig>;
 
-  constructor({ description, timeout, mpc_config, reporter_required, staking_contract, contract_metadata, }: { description: string, timeout: Timestamp, mpc_config: MpcConfig, reporter_required: ReporterRequired, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
+  constructor({ description, mpc_config, reporter_required, staking_contract, contract_metadata, }: { description: string, mpc_config: MpcConfig, reporter_required: ReporterRequired, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
     this.mpc_config = mpc_config;
     this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
-
-    if (!timeout) {
-      this.timeout = DEFAULT_TIME_OUT;
-    } else {
-      this.timeout = timeout;
-    }
 
     this.data_sources = new UnorderedMap("data_sources");
     this.report_lookup = new LookupMap("report_lookup");
@@ -428,18 +410,6 @@ export abstract class Aggregator extends ContractBase {
     return this.publish_chain_config_lookup.get(chain_id);
   }
 
-  abstract set_timeout({ timeout }: { timeout: Timestamp }): void;
-  _set_timeout({ timeout }: { timeout: Timestamp }): void {
-    this._assert_operator();
-    assert(BigInt(timeout) > BigInt(0), "timeout should be greater than 0.");
-    this.timeout = timeout;
-  }
-
-  abstract get_timeout(): Timestamp;
-  _get_timeout(): Timestamp {
-    return this.timeout;
-  }
-
   abstract get_latest_request_id(): string;
   _get_latest_request_id(): RequestId {
     return this.latest_request_id;
@@ -495,14 +465,6 @@ export abstract class Aggregator extends ContractBase {
         new Array<Report>()
       );
       _response = this.response_lookup.get(request_id);
-    }
-
-    // Update timeout status if necessary.
-    if (_response.status == RequestStatus[RequestStatus.FETCHING] && BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
-      _response.status = RequestStatus[RequestStatus.TIMEOUT];
-      new TimeoutEvent(_response).emit();
-      this.response_lookup.set(request_id, _response);
-      return;
     }
 
     // Only fetching request can accept reports.
@@ -633,17 +595,6 @@ export abstract class Aggregator extends ContractBase {
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
     assert(_response.status == RequestStatus[RequestStatus.AGGREGATED] || _response.status == RequestStatus[RequestStatus.PUBLISHED], `Response status is ${_response.status}, can't be published`);
-
-    // Update timeout status if necessary.
-    if (BigInt(_response.started_at) + BigInt(this.timeout) < near.blockTimestamp()) {
-      if (_response.status == RequestStatus[RequestStatus.AGGREGATED]) {
-        _response.status = RequestStatus[RequestStatus.TIMEOUT];
-        new TimeoutEvent(_response).emit();
-        this.response_lookup.set(request_id, _response);
-      }
-      near.log(`Request ${request_id} is timeout.`);
-      return;
-    }
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
