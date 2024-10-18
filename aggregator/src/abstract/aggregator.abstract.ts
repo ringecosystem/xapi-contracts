@@ -37,6 +37,24 @@ export class PublishChainConfig {
   }
 }
 
+class DataAuth {
+  /**
+   * headers.Authorization = headers: {"Authorization": "xxx"}
+   * query.token = example.com?token=xxx
+   * body.authorization.token = body: {"authorization":{"token": "xxx"}}
+   */
+  place_path: string;
+  /**
+   * env.API_KEY = read API_KEY from reporter node env
+   */
+  value_path: string;
+
+  constructor(place_path: string, value_path: string) {
+    this.place_path = place_path;
+    this.value_path = value_path;
+  }
+}
+
 export class DataSource {
   name: string;
   url: string;
@@ -45,14 +63,16 @@ export class DataSource {
   body_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
+  auth: DataAuth;
 
-  constructor({ name, url, method, headers, body_json, result_path }: { name: string, url: string, method: string, headers: Object, body_json: Object, result_path: string }) {
+  constructor({ name, url, method, headers, body_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, result_path: string, auth: DataAuth }) {
     this.name = name;
     this.url = url;
     this.method = method;
     this.headers = headers;
     this.body_json = body_json;
     this.result_path = result_path;
+    this.auth = auth;
   }
 }
 
@@ -510,6 +530,8 @@ export abstract class Aggregator extends ContractBase {
     assert(data_source.url != null, "Datasource url is null");
     assert(data_source.result_path != null, "Datasource result_path is null")
 
+    assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
+
     const checkMethod = data_source.method.toString();
     if (checkMethod.toUpperCase() == "GET") {
       data_source.method = RequestMethod[RequestMethod.GET];
@@ -526,7 +548,15 @@ export abstract class Aggregator extends ContractBase {
       assert(typeof data_source.body_json == "object", "body_json must be object");
     }
 
-    assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
+    if (data_source.auth) {
+      assert(
+        data_source.auth.place_path && data_source.auth.place_path.length > 0 &&
+        data_source.auth.value_path && data_source.auth.value_path.length > 0, "place_path and value_path of auth need to be set at the same time");
+      data_source.auth = new DataAuth(data_source.auth.place_path, data_source.auth.value_path);
+    } else {
+      data_source.auth = new DataAuth("", "");
+    }
+
     this.data_sources.set(data_source.name, data_source);
     new AddDataSourceEvent(data_source).emit();
   }
