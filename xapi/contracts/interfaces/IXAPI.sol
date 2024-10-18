@@ -36,15 +36,19 @@ struct AggregatorConfig {
 }
 
 interface IXAPI {
-    event RequestMade(uint256 indexed requestId, string aggregator, string requestData, address indexed requester);
+    event RequestMade(
+        uint256 indexed requestId,
+        string aggregator,
+        string requestData,
+        address indexed requester,
+        address indexed exAggregator,
+        uint256 reportersFee,
+        uint256 publishFee
+    );
     event Fulfilled(uint256 indexed requestId, ResponseData response, RequestStatus indexed status);
     event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
     event AggregatorConfigSet(
-        address indexed exAggregator,
-        uint256 reportersFee,
-        uint256 publishFee,
-        string aggregator,
-        address rewardAddress
+        address indexed exAggregator, uint256 reportersFee, uint256 publishFee, string aggregator, address rewardAddress
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
