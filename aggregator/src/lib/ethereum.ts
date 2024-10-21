@@ -180,7 +180,9 @@ export function encodeSetConfigCall({ functionSignature, params }: { functionSig
         encodeParameter("uint256", params[1]),
         encodeParameter("uint256", params[2]),
         encodeParameter("address", params[3]),
-        encodeParameter("bytes", stringToBytes(params[0]))
+        encodeParameter("uint256", params[4]),
+        encodeParameter("bytes", stringToBytes(params[0])),
+
     ].join('');
     return selector + encodeParams;
 }
