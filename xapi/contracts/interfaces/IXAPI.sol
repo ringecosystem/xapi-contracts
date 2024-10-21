@@ -35,6 +35,7 @@ struct AggregatorConfig {
     address rewardAddress;
     uint256 reportersFee;
     uint256 publishFee;
+    uint256 version;
     bool suspended;
 }
 
@@ -51,7 +52,7 @@ interface IXAPI {
     event Fulfilled(uint256 indexed requestId, ResponseData response, RequestStatus indexed status);
     event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
     event AggregatorConfigSet(
-        address indexed exAggregator, uint256 reportersFee, uint256 publishFee, string aggregator, address rewardAddress
+        address indexed exAggregator, uint256 reportersFee, uint256 publishFee, string aggregator, address rewardAddress, uint256 version
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
@@ -71,7 +72,8 @@ interface IXAPI {
         string memory aggregator,
         uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress
+        address rewardAddress,
+        uint256 version
     ) external;
 
     function suspendAggregator(address exAggregator) external;

@@ -102,17 +102,19 @@ contract XAPI is IXAPI, Ownable2Step {
         string memory aggregator,
         uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress
+        address rewardAddress,
+        uint256 version
     ) external {
         aggregatorConfigs[msg.sender] = AggregatorConfig({
             aggregator: aggregator,
             reportersFee: reportersFee,
             publishFee: publishFee,
             rewardAddress: rewardAddress,
+            version: version,
             suspended: false
         });
 
-        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress);
+        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress, version);
     }
 
     function suspendAggregator(address exAggregator) external onlyOwner {

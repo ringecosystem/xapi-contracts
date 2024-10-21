@@ -355,12 +355,13 @@ export abstract class Aggregator extends ContractBase {
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
     const function_call_data = encodeSetConfigCall({
-      functionSignature: "setAggregatorConfig(string,uint256,uint256,address)",
+      functionSignature: "setAggregatorConfig(string,uint256,uint256,address,uint256)",
       params: [
         near.currentAccountId(),
         BigInt(_latest_config.reporters_fee),
         BigInt(_latest_config.publish_fee),
-        _latest_config.xapi_address
+        _latest_config.reward_address,
+        _latest_config.version
       ]
     })
     // near.log("functionCallData", function_call_data);
@@ -708,7 +709,7 @@ export abstract class Aggregator extends ContractBase {
     assert(mpc_options.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
   }
 
-  private _report_deposit(report: Report): bigint {
+  _report_deposit(report: Report): bigint {
     const _bytes = BigInt(sizeOf(report));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
