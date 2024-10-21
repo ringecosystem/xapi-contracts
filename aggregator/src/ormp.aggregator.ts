@@ -163,6 +163,11 @@ class OrmpAggregator extends Aggregator {
     super._set_staking_contract({ staking_contract });
   }
 
+  @call({})
+  set_max_result_length({ max_result_length }: { max_result_length: number; }): void {
+    super._set_max_result_length({ max_result_length });
+  }
+
   /// Views
 
   @view({})
@@ -204,6 +209,10 @@ class OrmpAggregator extends Aggregator {
   @view({})
   get_data_sources(): DataSource[] {
     return super._get_data_sources()
+  }
+  @view({})
+  get_max_result_length(): number {
+    return super._get_max_result_length();
   }
   @view({})
   contract_source_metadata(): ContractSourceMetadata {
