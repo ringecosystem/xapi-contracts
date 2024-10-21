@@ -12,7 +12,7 @@ contract XAPI is IXAPI, Ownable2Step {
 
     constructor() Ownable(msg.sender) {}
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
+    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
         external
         payable
         returns (uint256)

@@ -55,7 +55,7 @@ interface IXAPI {
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
+    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
         external
         payable
         returns (uint256);
