@@ -560,6 +560,7 @@ export abstract class Aggregator extends ContractBase {
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
   abstract _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean;
 
+  abstract try_aggregate_external({ request_id }: { request_id: RequestId }): NearPromise;
   _try_aggregate({ request_id }: { request_id: RequestId }): NearPromise {
     if (this._can_aggregate({ request_id })) {
       near.log("try_aggregate: ", request_id);
