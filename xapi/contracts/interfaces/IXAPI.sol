@@ -24,6 +24,8 @@ enum RequestStatus {
 struct ResponseData {
     address[] reporters;
     bytes result;
+    // 0 if no error
+    uint16 errorCode;
 }
 
 struct AggregatorConfig {

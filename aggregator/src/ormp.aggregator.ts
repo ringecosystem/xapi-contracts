@@ -30,7 +30,7 @@ class OrmpAggregator extends Aggregator {
     return this.report_lookup.get(request_id).length >= this.reporter_required.threshold;
   }
 
-  _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean {
+  _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): void {
     // 1. Filter invalid reports via top staked reporters
     const _reporters = this.report_lookup.get(request_id).map(r => r.reporter);
     const _valid_reporters = _reporters.filter(reporter =>
@@ -43,37 +43,63 @@ class OrmpAggregator extends Aggregator {
     const _each_reporter_report = [];
     const _each_reporter_result = new Map<string, string>();
 
+    let _error_reporters = [];
+    let _error = "";
+
     // 2. Aggregate from multi datasources of one report.
     _valid_reports.forEach(report => {
+      // calc error reports
+      for (const a of report.answers) {
+        if (a.error) {
+          _error = a.error;
+          _error_reporters.push(report.reporter);
+          break;
+        }
+      }
       const _result = this._aggregate_answer(report.answers.map(r => r.result)).result;
       _each_reporter_result.set(report.reporter, _result);
       _each_reporter_report.push(_result);
     });
 
-    // 3. Aggregate from multi reports
-    const most_common_report = this._aggregate_answer(_each_reporter_report);
-    near.log("most_common_report: ", most_common_report);
+    if (_error_reporters.length >= this.reporter_required.threshold) {
+      // 3. Handle error
+      const _response = this.response_lookup.get(request_id);
 
-    const result = most_common_report.result;
-    assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
-    assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
-
-    const _response = this.response_lookup.get(request_id);
-
-    _response.valid_reporters = [];
-    _response.reporter_reward_addresses = []
-    // 4. Filter most common reporter, only most common report will be rewarded
-    for (const _report of _valid_reports) {
-      const key = _each_reporter_result.get(_report.reporter);
-      if (key === most_common_report.result) {
-        _response.reporter_reward_addresses.push(_report.reward_address);
-        _response.valid_reporters.push(_report.reporter);
+      _response.valid_reporters = _error_reporters;
+      _response.reporter_reward_addresses = []
+      // 4. Only error report will be rewarded
+      for (const _report of _valid_reports) {
+        if (_error_reporters.includes(_report.reporter)) {
+          _response.reporter_reward_addresses.push(_report.reward_address);
+        }
       }
-    }
+      _response.error_code = 1;
+      this.response_lookup.set(request_id, _response);
+    } else {
+      // 3. Aggregate from multi reports
+      const most_common_report = this._aggregate_answer(_each_reporter_report);
+      near.log("most_common_report: ", most_common_report);
 
-    _response.result = result;
-    this.response_lookup.set(request_id, _response);
-    return true;
+      const result = most_common_report.result;
+      assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
+      assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
+
+      const _response = this.response_lookup.get(request_id);
+
+      _response.valid_reporters = [];
+      _response.reporter_reward_addresses = []
+      // 4. Filter most common reporter, only most common report will be rewarded
+      for (const _report of _valid_reports) {
+        const key = _each_reporter_result.get(_report.reporter);
+        if (key === most_common_report.result) {
+          _response.reporter_reward_addresses.push(_report.reward_address);
+          _response.valid_reporters.push(_report.reporter);
+        }
+      }
+
+      _response.result = result;
+      this.response_lookup.set(request_id, _response);
+    }
   }
 
   _aggregate_answer(answers: string[]): { result: string, count: number } {

@@ -146,18 +146,24 @@ export function encodePublishCall({ functionSignature, params }: { functionSigna
     const bytesParams = params[1][1]
     const bytesValue = encodeParameter('bytes', bytesParams);
 
+    // encode uint16
+    const uint16Value = encodeParameter('uint256', params[1][2]);
+
     // offset
     const offsetTuple = (64).toString(16).padStart(64, '0');
     const offsetAddresses = (64).toString(16).padStart(64, '0');
     const offsetBytes = ((64 + addressesData.length / 2).toString(16)).padStart(64, '0');
+    const offsetUint16 = ((64 + addressesData.length / 2 + bytesValue.length / 2).toString(16)).padStart(64, '0');
 
     const encodeParams = [
         encodeParameter("uint256", params[0]),
         offsetTuple,
         offsetAddresses,
         offsetBytes,
+        offsetUint16,
         addressesData,
-        bytesValue
+        bytesValue,
+        uint16Value
     ].join('');
     return selector + encodeParams;
 }
@@ -180,6 +186,9 @@ export function encodeSetConfigCall({ functionSignature, params }: { functionSig
 }
 
 export function stringToBytes(str: string): string {
+    if (!str) {
+        return "0x";
+    }
     const bytes: number[] = [];
     for (let i = 0; i < str.length; i++) {
         bytes.push(str.charCodeAt(i));

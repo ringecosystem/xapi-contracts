@@ -35,7 +35,7 @@ contract XAPI is IXAPI, Ownable2Step {
             payment: msg.value,
             aggregator: aggregatorConfig.aggregator,
             exAggregator: exAggregator,
-            response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
+            response: ResponseData({reporters: new address[](0), result: new bytes(0), errorCode: 0}),
             requestData: requestData
         });
         emit RequestMade(
