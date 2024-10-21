@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+import "./interfaces/IXAPIConsumer.sol";
 import "xapi/contracts/interfaces/IXAPI.sol";
 
-contract ConsumerExample {
+contract ConsumerExample is IXAPIConsumer {
     IXAPI public xapi;
 
     event RequestMade(uint256 requestId, string requestData);
-    event ConsumeResult(uint256 requestId, bytes responseData);
+    event ConsumeResult(uint256 requestId, bytes responseData, uint16 errorCode);
 
     constructor(address xapiAddress) {
         xapi = IXAPI(xapiAddress);
@@ -19,13 +20,13 @@ contract ConsumerExample {
 
     function makeRequest(address aggregator) external payable {
         string memory requestData = "{'hello':'world'}";
-        uint256 requestId = xapi.makeRequest{value: msg.value}(requestData, this.fulfillCallback.selector, aggregator);
+        uint256 requestId = xapi.makeRequest{value: msg.value}(aggregator, requestData, this.xapiCallback.selector);
         emit RequestMade(requestId, requestData);
     }
 
-    function fulfillCallback(uint256 requestId, ResponseData memory response) external {
+    function xapiCallback(uint256 requestId, ResponseData memory response) external {
         require(msg.sender == address(xapi), "Only XAPI can call this function");
 
-        emit ConsumeResult(requestId, response.result);
+        emit ConsumeResult(requestId, response.result, response.errorCode);
     }
 }

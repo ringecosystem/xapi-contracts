@@ -12,7 +12,7 @@ contract XAPI is IXAPI, Ownable2Step {
 
     constructor() Ownable(msg.sender) {}
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
+    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
         external
         payable
         returns (uint256)
@@ -35,7 +35,7 @@ contract XAPI is IXAPI, Ownable2Step {
             payment: msg.value,
             aggregator: aggregatorConfig.aggregator,
             exAggregator: exAggregator,
-            response: ResponseData({reporters: new address[](0), result: new bytes(0)}),
+            response: ResponseData({reporters: new address[](0), result: new bytes(0), errorCode: 0}),
             requestData: requestData
         });
         emit RequestMade(

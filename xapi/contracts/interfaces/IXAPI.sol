@@ -10,6 +10,7 @@ struct Request {
     address callbackContract;
     bytes4 callbackFunction;
     RequestStatus status;
+    // Derived address of aggregator account (on near)
     address exAggregator;
     ResponseData response;
     uint256 payment;
@@ -24,6 +25,8 @@ enum RequestStatus {
 struct ResponseData {
     address[] reporters;
     bytes result;
+    // 0 if no error
+    uint16 errorCode;
 }
 
 struct AggregatorConfig {
@@ -52,7 +55,7 @@ interface IXAPI {
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
-    function makeRequest(string memory requestData, bytes4 callbackFunction, address exAggregator)
+    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
         external
         payable
         returns (uint256);

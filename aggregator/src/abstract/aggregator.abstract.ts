@@ -78,10 +78,13 @@ export class DataSource {
 export class Answer {
   data_source_name: string;
   result: string;
+  // Set the error message if there is an error, leave it null/blank if there's no error.
+  error: string;
 
-  constructor({ data_source_name, result }: { data_source_name: string, result: string }) {
+  constructor({ data_source_name, result, error }: { data_source_name: string, result: string, error: string }) {
     this.data_source_name = data_source_name;
     this.result = result;
+    this.error = error;
   }
 }
 
@@ -183,11 +186,14 @@ export class Response {
 
   // 👇 These values should be aggregated from reporter's answer
   result: string;
+  // Leave it 0 if there's no error. MAX: 65535(uint16)
+  error_code: number;
 
   constructor(request_id: RequestId) {
     this.request_id = request_id;
     this.started_at = near.blockTimestamp().toString();
     this.status = RequestStatus[RequestStatus.FETCHING];
+    this.error_code = 0;
   }
 }
 
@@ -237,6 +243,8 @@ const DERIVATION_PATH_PREFIX = "XAPI";
 export abstract class Aggregator extends ContractBase {
   description: string;
   latest_request_id: RequestId;
+  // The max length of the report answer. Preventing gas limit being exceeded when publishing.
+  max_result_length: number;
 
   mpc_config: MpcConfig;
   staking_contract: AccountId;
@@ -254,6 +262,7 @@ export abstract class Aggregator extends ContractBase {
   constructor({ description, mpc_config, reporter_required, staking_contract, contract_metadata, }: { description: string, mpc_config: MpcConfig, reporter_required: ReporterRequired, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
+    this.max_result_length = 500;
     this.mpc_config = mpc_config;
     this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
@@ -269,6 +278,19 @@ export abstract class Aggregator extends ContractBase {
   abstract get_description(): string;
   _get_description(): string {
     return this.description;
+  }
+
+  abstract set_max_result_length({ max_result_length }: { max_result_length: number }): void;
+  _set_max_result_length({ max_result_length }: { max_result_length: number }): void {
+    this._assert_operator();
+    max_result_length = Number(max_result_length);
+    assert(max_result_length > 0, "max_result_length should be greater than 0");
+    this.max_result_length = max_result_length;
+  }
+
+  abstract get_max_result_length(): number;
+  _get_max_result_length(): number {
+    return this.max_result_length;
   }
 
   abstract set_mpc_config(mpc_config: MpcConfig): void;
@@ -439,6 +461,10 @@ export abstract class Aggregator extends ContractBase {
     assert(answers != null && answers.length > 0, "answers is empty");
     assert(reward_address != null, "reward_address is null");
 
+    for (let i = 0; i < answers.length; i++) {
+      assert(answers[i].result.length <= this.max_result_length, `answers[${i}].result.length > ${this.max_result_length}`);
+    }
+
     const __report = new Report({
       request_id,
       answers,
@@ -538,8 +564,9 @@ export abstract class Aggregator extends ContractBase {
   }
 
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;
-  abstract _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): boolean;
+  abstract _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): void;
 
+  abstract try_aggregate_external({ request_id }: { request_id: RequestId }): NearPromise;
   _try_aggregate({ request_id }: { request_id: RequestId }): NearPromise {
     if (this._can_aggregate({ request_id })) {
       near.log("try_aggregate: ", request_id);
@@ -601,12 +628,13 @@ export abstract class Aggregator extends ContractBase {
 
     // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
     const function_call_data = encodePublishCall({
-      functionSignature: "fulfill(uint256,(address[],bytes))",
+      functionSignature: "fulfill(uint256,(address[],bytes,uint16))",
       params: [
         BigInt(request_id),
         [
           _response.reporter_reward_addresses,
-          stringToBytes(_response.result)
+          stringToBytes(_response.result),
+          _response.error_code
         ]
       ]
     })
