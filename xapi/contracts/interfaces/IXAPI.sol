@@ -10,6 +10,7 @@ struct Request {
     address callbackContract;
     bytes4 callbackFunction;
     RequestStatus status;
+    // Derived address of aggregator account (on near)
     address exAggregator;
     ResponseData response;
     uint256 payment;
