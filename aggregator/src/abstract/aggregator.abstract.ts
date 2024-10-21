@@ -709,6 +709,7 @@ export abstract class Aggregator extends ContractBase {
     assert(mpc_options.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
   }
 
+  abstract estimate_report_deposit(report: Report): bigint;
   _report_deposit(report: Report): bigint {
     const _bytes = BigInt(sizeOf(report));
     // 100KB == 1Near == 10^24 yoctoNear

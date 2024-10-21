@@ -17,7 +17,7 @@ export function sizeOf(obj: any) {
                 if (_objClass === "Object" || _objClass === "Array") {
                     for (let _key in obj) {
                         if (!obj.hasOwnProperty(_key)) continue;
-                        sizeOf(obj[_key]);
+                        _bytes += sizeOf(obj[_key]);
                     }
                 } else {
                     _bytes += obj.toString().length * 2;

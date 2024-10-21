@@ -202,6 +202,10 @@ class OrmpAggregator extends Aggregator {
   /// Views
 
   @view({})
+  estimate_report_deposit(report: Report): bigint {
+    return super._report_deposit(report);
+  }
+  @view({})
   get_description(): string {
     return super._get_description();
   }
