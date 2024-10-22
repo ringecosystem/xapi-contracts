@@ -151,19 +151,17 @@ export function encodePublishCall({ functionSignature, params }: { functionSigna
 
     // offset
     const offsetTuple = (64).toString(16).padStart(64, '0');
-    const offsetAddresses = (64).toString(16).padStart(64, '0');
-    const offsetBytes = ((64 + addressesData.length / 2).toString(16)).padStart(64, '0');
-    const offsetUint16 = ((64 + addressesData.length / 2 + bytesValue.length / 2).toString(16)).padStart(64, '0');
+    const offsetAddresses = (96).toString(16).padStart(64, '0');
+    const offsetBytes = ((96 + addressesData.length / 2).toString(16)).padStart(64, '0');
 
     const encodeParams = [
         encodeParameter("uint256", params[0]),
         offsetTuple,
         offsetAddresses,
         offsetBytes,
-        offsetUint16,
+        uint16Value,
         addressesData,
         bytesValue,
-        uint16Value
     ].join('');
     return selector + encodeParams;
 }

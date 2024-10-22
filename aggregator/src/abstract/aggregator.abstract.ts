@@ -349,6 +349,7 @@ export abstract class Aggregator extends ContractBase {
   abstract sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise;
   _sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
+    // todo refund
     assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
 
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
@@ -442,7 +443,6 @@ export abstract class Aggregator extends ContractBase {
   abstract get_reports({ request_id }: { request_id: RequestId }): Report[];
   _get_reports({ request_id }: { request_id: RequestId }): Report[] {
     const _reports = this.report_lookup.get(request_id);
-    assert(_reports != null, `Non reports for request_id: ${request_id}`);
     return _reports;
   }
 
@@ -473,6 +473,7 @@ export abstract class Aggregator extends ContractBase {
       reward_address
     });
 
+    // todo refund
     const _deposit = near.attachedDeposit();
     const _required_deposit = this._report_deposit(__report);
     assert(
@@ -619,6 +620,7 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_external({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise;
   _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
+    // todo refund
     assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
 
     const _response = this.response_lookup.get(request_id);
@@ -636,7 +638,7 @@ export abstract class Aggregator extends ContractBase {
         [
           _response.reporter_reward_addresses,
           stringToBytes(_response.result),
-          _response.error_code
+          _response.error_code || 0
         ]
       ]
     })
