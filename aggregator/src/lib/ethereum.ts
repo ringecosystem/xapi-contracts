@@ -173,7 +173,7 @@ export function encodeSetConfigCall({ functionSignature, params }: { functionSig
     // near.log(`selector: ${selector}`)
 
     // Aggregator account string offset
-    const offsetString = (128).toString(16).padStart(64, '0');
+    const offsetString = (160).toString(16).padStart(64, '0');
 
     const encodeParams = [
         offsetString,
@@ -182,7 +182,6 @@ export function encodeSetConfigCall({ functionSignature, params }: { functionSig
         encodeParameter("address", params[3]),
         encodeParameter("uint256", params[4]),
         encodeParameter("bytes", stringToBytes(params[0])),
-
     ].join('');
     return selector + encodeParams;
 }

@@ -142,7 +142,7 @@ class SetPublishChainConfigEvent extends Nep297Event {
   }
 }
 
-class SyncPublishChainConfigData {
+export class SyncPublishChainConfigData {
   chain_id: ChainId;
   xapi_address: string;
   version: string;
@@ -406,8 +406,8 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): void;
-  _sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): void {
+  abstract sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): SyncPublishChainConfigData;
+  _sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId, mpc_options: MpcOptions, call_data: string, version: string }): SyncPublishChainConfigData {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`sync_publish_config_to_remote_callback ${chain_id}, ${_result.success}, ${_result.result}, version: ${version}`);
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
@@ -416,15 +416,16 @@ export abstract class Aggregator extends ContractBase {
         near.log(`Config is out of date, latest: ${_latest_config.version}, want to sync: ${version}`)
         return;
       }
-
-      new SyncPublishChainConfigEvent(new SyncPublishChainConfigData({
+      const sync_data = new SyncPublishChainConfigData({
         chain_id,
         mpc_options,
         call_data,
         version,
         signature: _result.result,
         xapi_address: _latest_config.xapi_address
-      })).emit();
+      });
+      new SyncPublishChainConfigEvent(sync_data).emit();
+      return sync_data;
     }
   }
 
