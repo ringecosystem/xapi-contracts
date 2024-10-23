@@ -110,15 +110,15 @@ export class PublishData {
   request_id: RequestId;
   response: Response;
   call_data: string;
-  chain_config: PublishChainConfig;
+  publish_chain_config: PublishChainConfig;
   signature: string;
   mpc_options: MpcOptions;
 
-  constructor({ request_id, response, call_data, chain_config, signature, mpc_options }: { request_id: RequestId, response: Response, call_data: string, chain_config: PublishChainConfig, signature: string, mpc_options: MpcOptions }) {
+  constructor({ request_id, response, call_data, publish_chain_config, signature, mpc_options }: { request_id: RequestId, response: Response, call_data: string, publish_chain_config: PublishChainConfig, signature: string, mpc_options: MpcOptions }) {
     this.request_id = request_id;
     this.response = response;
     this.call_data = call_data;
-    this.chain_config = chain_config;
+    this.publish_chain_config = publish_chain_config;
     this.signature = signature;
     this.mpc_options = mpc_options;
   }
@@ -718,7 +718,7 @@ export abstract class Aggregator extends ContractBase {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
       const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
       const _publish_data = new PublishData({
-        request_id, response: _response, chain_config: _chain_config, signature: _result.result,
+        request_id, response: _response, publish_chain_config: _chain_config, signature: _result.result,
         mpc_options, call_data
       })
       new PublishEvent(_publish_data).emit();
