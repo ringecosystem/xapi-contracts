@@ -130,7 +130,7 @@ class OrmpAggregator extends Aggregator {
 
   /// Calls
 
-  @call({ payableFunction: true })
+  @call({})
   publish_external({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): NearPromise {
     return super._publish({ request_id, mpc_options });
   }
@@ -155,7 +155,7 @@ class OrmpAggregator extends Aggregator {
     return super._try_aggregate({ request_id });
   }
 
-  @call({ payableFunction: true })
+  @call({})
   sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId; mpc_options: MpcOptions; }): NearPromise {
     return super._sync_publish_config_to_remote({ chain_id, mpc_options });
   }

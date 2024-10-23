@@ -350,12 +350,12 @@ export abstract class Aggregator extends ContractBase {
   _sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
 
-    assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
-    let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
-    if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    }
+    // assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
+    // let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
+    // if (_surplus > 0) {
+    //   near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+    //   NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    // }
 
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
@@ -638,12 +638,12 @@ export abstract class Aggregator extends ContractBase {
   _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
 
-    assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
-    let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
-    if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    }
+    // assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
+    // let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
+    // if (_surplus > 0) {
+    //   near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+    //   NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    // }
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
