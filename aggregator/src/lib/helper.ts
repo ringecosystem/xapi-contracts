@@ -1,3 +1,4 @@
+import { near } from "near-sdk-js";
 
 export function sizeOf(obj: any) {
     let _bytes = 0;
@@ -25,5 +26,6 @@ export function sizeOf(obj: any) {
                 break;
         }
     }
+    // near.log(`bytes: ${_bytes}, value: ${JSON.stringify(obj)}`);
     return _bytes;
 }

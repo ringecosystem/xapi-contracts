@@ -248,7 +248,7 @@ export abstract class Aggregator extends ContractBase {
 
   mpc_config: MpcConfig;
   staking_contract: AccountId;
-  reporter_required: ReporterRequired
+  reporter_required: ReporterRequired;
 
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
@@ -349,8 +349,13 @@ export abstract class Aggregator extends ContractBase {
   abstract sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise;
   _sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
-    // todo refund
+
     assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
+    let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
+    if (_surplus > 0) {
+      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
 
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
@@ -473,13 +478,17 @@ export abstract class Aggregator extends ContractBase {
       reward_address
     });
 
-    // todo refund
     const _deposit = near.attachedDeposit();
-    const _required_deposit = this._report_deposit(__report);
+    const _required_deposit = this._storage_deposit(__report);
     assert(
       _deposit >= _required_deposit,
       `Insufficient deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
+    let _surplus = near.attachedDeposit() - _required_deposit;
+    if (_surplus > 0) {
+      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -522,6 +531,14 @@ export abstract class Aggregator extends ContractBase {
     assert(data_source.result_path != null, "Datasource result_path is null")
 
     assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
+
+    const _required_deposit = this._storage_deposit(data_source);
+    const _surplus = near.attachedDeposit() - _required_deposit;
+    assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
+    if (_surplus > 0) {
+      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
 
     const checkMethod = data_source.method.toString();
     if (checkMethod.toUpperCase() == "GET") {
@@ -620,8 +637,13 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_external({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise;
   _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
-    // todo refund
+
     assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
+    let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
+    if (_surplus > 0) {
+      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
@@ -712,9 +734,9 @@ export abstract class Aggregator extends ContractBase {
     assert(mpc_options.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
   }
 
-  abstract estimate_report_deposit(report: Report): bigint;
-  _report_deposit(report: Report): bigint {
-    const _bytes = BigInt(sizeOf(report));
+  abstract estimate_storage_deposit(obj: any): bigint;
+  _storage_deposit(obj: any): bigint {
+    const _bytes = BigInt(sizeOf(obj));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
     const _yocto_per_byte = BigInt(10 ** 22) / BigInt(1024);

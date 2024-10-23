@@ -121,6 +121,7 @@ class OrmpAggregator extends Aggregator {
     }
   }
 
+  // todo remove
   @migrate({})
   _clear_state() {
     this._assert_operator();
@@ -149,7 +150,7 @@ class OrmpAggregator extends Aggregator {
     return super._report({ request_id, answers, reward_address });
   }
 
-  @call({ payableFunction: true })
+  @call({})
   try_aggregate_external({ request_id }: { request_id: RequestId; }): NearPromise {
     return super._try_aggregate({ request_id });
   }
@@ -202,8 +203,8 @@ class OrmpAggregator extends Aggregator {
   /// Views
 
   @view({})
-  estimate_report_deposit(report: Report): bigint {
-    return super._report_deposit(report);
+  estimate_storage_deposit(obj: any): bigint {
+    return super._storage_deposit(obj);
   }
   @view({})
   get_description(): string {
