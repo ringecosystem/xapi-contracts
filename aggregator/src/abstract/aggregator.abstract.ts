@@ -244,6 +244,7 @@ export class Staked {
 
 // Derivation path prefix for mpc
 const DERIVATION_PATH_PREFIX = "XAPI";
+const DEFAULT_MAX_RESULT_LENGTH = 500;
 
 export abstract class Aggregator extends ContractBase {
   description: string;
@@ -267,7 +268,7 @@ export abstract class Aggregator extends ContractBase {
   constructor({ description, mpc_config, reporter_required, staking_contract, contract_metadata, }: { description: string, mpc_config: MpcConfig, reporter_required: ReporterRequired, staking_contract: AccountId, contract_metadata: ContractSourceMetadata }) {
     super(contract_metadata);
     this.description = description;
-    this.max_result_length = 500;
+    this.max_result_length = DEFAULT_MAX_RESULT_LENGTH;
     this.mpc_config = mpc_config;
     this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
