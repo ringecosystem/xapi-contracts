@@ -474,14 +474,9 @@ export abstract class Aggregator extends ContractBase {
     const _deposit = near.attachedDeposit();
     const _required_deposit = this._storage_deposit(__report);
     assert(
-      _deposit >= _required_deposit,
-      `Insufficient deposit, deposit: ${_deposit}, required: ${_required_deposit}`
+      _deposit == _required_deposit,
+      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
-    let _surplus = near.attachedDeposit() - _required_deposit;
-    if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    }
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -514,8 +509,8 @@ export abstract class Aggregator extends ContractBase {
     return this._try_aggregate({ request_id });
   }
 
-  abstract add_data_source(data_source: DataSource): void;
-  _add_data_source(data_source: DataSource): void {
+  abstract add_data_source(data_source: DataSource): NearPromise;
+  _add_data_source(data_source: DataSource): NearPromise {
     this._assert_operator();
 
     assert(data_source.name != null, "Datasource name is null");
@@ -528,9 +523,10 @@ export abstract class Aggregator extends ContractBase {
     const _required_deposit = this._storage_deposit(data_source);
     const _surplus = near.attachedDeposit() - _required_deposit;
     assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
+    let promise = null;
     if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+      near.log(`Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}, refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      promise = NearPromise.new(near.signerAccountId()).transfer(_surplus);
     }
 
     const checkMethod = data_source.method.toString();
@@ -560,6 +556,9 @@ export abstract class Aggregator extends ContractBase {
 
     this.data_sources.set(data_source.name, data_source);
     new AddDataSourceEvent(data_source).emit();
+    if (promise) {
+      return promise.asReturn();
+    }
   }
 
   abstract remove_data_source({ data_source_name }: { data_source_name: string }): void;
