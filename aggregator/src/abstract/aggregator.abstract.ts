@@ -15,7 +15,10 @@ export enum RequestStatus {
 
 export enum RequestMethod {
   GET,
-  POST
+  POST,
+  PUT,
+  DELETE,
+  PATCH
 }
 
 export class PublishChainConfig {
@@ -60,16 +63,18 @@ export class DataSource {
   method: string;
   headers: Object;
   body_json: Object;
+  query_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
   auth: DataAuth;
 
-  constructor({ name, url, method, headers, body_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, result_path: string, auth: DataAuth }) {
+  constructor({ name, url, method, headers, body_json, query_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, query_json: Object, result_path: string, auth: DataAuth }) {
     this.name = name;
     this.url = url;
     this.method = method;
     this.headers = headers;
     this.body_json = body_json;
+    this.query_json = query_json;
     this.result_path = result_path;
     this.auth = auth;
   }
@@ -534,8 +539,14 @@ export abstract class Aggregator extends ContractBase {
       data_source.method = RequestMethod[RequestMethod.GET];
     } else if (checkMethod.toUpperCase() == "POST") {
       data_source.method = RequestMethod[RequestMethod.POST];
+    } else if (checkMethod.toUpperCase() == "PUT") {
+      data_source.method = RequestMethod[RequestMethod.PUT];
+    } else if (checkMethod.toUpperCase() == "DELETE") {
+      data_source.method = RequestMethod[RequestMethod.DELETE];
+    } else if (checkMethod.toUpperCase() == "PATCH") {
+      data_source.method = RequestMethod[RequestMethod.PATCH];
     } else {
-      assert(false, "method should be POST or GET");
+      assert(false, "method should be in [GET, POST, PUT, DELETE, PATCH]");
     }
 
     if (data_source.headers) {
@@ -543,6 +554,9 @@ export abstract class Aggregator extends ContractBase {
     }
     if (data_source.body_json) {
       assert(typeof data_source.body_json == "object", "body_json must be object");
+    }
+    if (data_source.query_json) {
+      assert(typeof data_source.query_json == "object", "query_json must be object");
     }
 
     if (data_source.auth) {
