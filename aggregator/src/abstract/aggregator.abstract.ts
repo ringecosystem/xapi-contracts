@@ -15,7 +15,10 @@ export enum RequestStatus {
 
 export enum RequestMethod {
   GET,
-  POST
+  POST,
+  PUT,
+  DELETE,
+  PATCH
 }
 
 export class PublishChainConfig {
@@ -60,16 +63,18 @@ export class DataSource {
   method: string;
   headers: Object;
   body_json: Object;
+  query_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
   result_path: string;
   auth: DataAuth;
 
-  constructor({ name, url, method, headers, body_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, result_path: string, auth: DataAuth }) {
+  constructor({ name, url, method, headers, body_json, query_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, query_json: Object, result_path: string, auth: DataAuth }) {
     this.name = name;
     this.url = url;
     this.method = method;
     this.headers = headers;
     this.body_json = body_json;
+    this.query_json = query_json;
     this.result_path = result_path;
     this.auth = auth;
   }
@@ -336,11 +341,11 @@ export abstract class Aggregator extends ContractBase {
   abstract set_publish_chain_config(publish_chain_config: PublishChainConfig): void;
   _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
     this._assert_operator();
-    assert(publish_chain_config.chain_id != null, "chain_id can't be null.");
-    assert(publish_chain_config.xapi_address != null, "xapi_address can't be null.");
-    assert(publish_chain_config.reporters_fee != null, "reporters_fee can't be null.");
-    assert(publish_chain_config.publish_fee != null, "publish_fee can't be null.");
-    assert(publish_chain_config.reward_address != null, "reward_address can't be null.");
+    assert(publish_chain_config.chain_id != null && publish_chain_config.chain_id.length <= 20, "chain_id can't be null and the length should <= 20");
+    assert(publish_chain_config.xapi_address != null && publish_chain_config.xapi_address.length == 42, "xapi_address can't be null and the length should be 42.");
+    assert(publish_chain_config.reporters_fee != null && publish_chain_config.reporters_fee.length <= 78, "reporters_fee can't be null and the length should <= 78");
+    assert(publish_chain_config.publish_fee != null && publish_chain_config.publish_fee.length <= 78, "publish_fee can't be null and the length should <= 78");
+    assert(publish_chain_config.reward_address != null && publish_chain_config.reward_address.length == 42, "reward_address can't be null and the length should be 42.");
     const _publish_config = new PublishChainConfig({ ...publish_chain_config });
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id, _publish_config);
     new SetPublishChainConfigEvent(_publish_config).emit();
@@ -349,13 +354,6 @@ export abstract class Aggregator extends ContractBase {
   abstract sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise;
   _sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
-
-    // assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
-    // let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
-    // if (_surplus > 0) {
-    //   near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-    //   NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    // }
 
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
@@ -481,14 +479,9 @@ export abstract class Aggregator extends ContractBase {
     const _deposit = near.attachedDeposit();
     const _required_deposit = this._storage_deposit(__report);
     assert(
-      _deposit >= _required_deposit,
-      `Insufficient deposit, deposit: ${_deposit}, required: ${_required_deposit}`
+      _deposit == _required_deposit,
+      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
-    let _surplus = near.attachedDeposit() - _required_deposit;
-    if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    }
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -521,8 +514,8 @@ export abstract class Aggregator extends ContractBase {
     return this._try_aggregate({ request_id });
   }
 
-  abstract add_data_source(data_source: DataSource): void;
-  _add_data_source(data_source: DataSource): void {
+  abstract add_data_source(data_source: DataSource): NearPromise;
+  _add_data_source(data_source: DataSource): NearPromise {
     this._assert_operator();
 
     assert(data_source.name != null, "Datasource name is null");
@@ -535,9 +528,10 @@ export abstract class Aggregator extends ContractBase {
     const _required_deposit = this._storage_deposit(data_source);
     const _surplus = near.attachedDeposit() - _required_deposit;
     assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
+    let promise = null;
     if (_surplus > 0) {
-      near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-      NearPromise.new(near.signerAccountId()).transfer(_surplus);
+      near.log(`Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}, refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      promise = NearPromise.new(near.signerAccountId()).transfer(_surplus);
     }
 
     const checkMethod = data_source.method.toString();
@@ -545,8 +539,14 @@ export abstract class Aggregator extends ContractBase {
       data_source.method = RequestMethod[RequestMethod.GET];
     } else if (checkMethod.toUpperCase() == "POST") {
       data_source.method = RequestMethod[RequestMethod.POST];
+    } else if (checkMethod.toUpperCase() == "PUT") {
+      data_source.method = RequestMethod[RequestMethod.PUT];
+    } else if (checkMethod.toUpperCase() == "DELETE") {
+      data_source.method = RequestMethod[RequestMethod.DELETE];
+    } else if (checkMethod.toUpperCase() == "PATCH") {
+      data_source.method = RequestMethod[RequestMethod.PATCH];
     } else {
-      assert(false, "method should be POST or GET");
+      assert(false, "method should be in [GET, POST, PUT, DELETE, PATCH]");
     }
 
     if (data_source.headers) {
@@ -554,6 +554,9 @@ export abstract class Aggregator extends ContractBase {
     }
     if (data_source.body_json) {
       assert(typeof data_source.body_json == "object", "body_json must be object");
+    }
+    if (data_source.query_json) {
+      assert(typeof data_source.query_json == "object", "query_json must be object");
     }
 
     if (data_source.auth) {
@@ -567,6 +570,9 @@ export abstract class Aggregator extends ContractBase {
 
     this.data_sources.set(data_source.name, data_source);
     new AddDataSourceEvent(data_source).emit();
+    if (promise) {
+      return promise.asReturn();
+    }
   }
 
   abstract remove_data_source({ data_source_name }: { data_source_name: string }): void;
@@ -637,13 +643,6 @@ export abstract class Aggregator extends ContractBase {
   abstract publish_external({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise;
   _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
     this._check_mpc_options(mpc_options);
-
-    // assert(near.attachedDeposit() >= BigInt(this.mpc_config.attached_balance), `Attached: ${near.attachedDeposit()}, Require: ${this.mpc_config.attached_balance}`);
-    // let _surplus = near.attachedDeposit() - BigInt(this.mpc_config.attached_balance);
-    // if (_surplus > 0) {
-    //   near.log(`refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
-    //   NearPromise.new(near.signerAccountId()).transfer(_surplus);
-    // }
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);

@@ -166,8 +166,8 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ payableFunction: true })
-  add_data_source(data_source: DataSource): void {
-    super._add_data_source(data_source);
+  add_data_source(data_source: DataSource): NearPromise {
+    return super._add_data_source(data_source);
   }
 
   @call({})
