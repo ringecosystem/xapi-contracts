@@ -168,9 +168,9 @@ class OrmpAggregator extends Aggregator {
     super._remove_data_source({ data_source_name });
   }
 
-  @call({})
-  set_publish_chain_config(publis_chain_config: PublishChainConfig): void {
-    super._set_publish_chain_config(publis_chain_config);
+  @call({ payableFunction: true })
+  set_publish_chain_config(publis_chain_config: PublishChainConfig): NearPromise {
+    return super._set_publish_chain_config(publis_chain_config);
   }
 
   @call({})

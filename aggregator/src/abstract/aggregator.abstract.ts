@@ -339,8 +339,8 @@ export abstract class Aggregator extends ContractBase {
     return this.staking_contract;
   }
 
-  abstract set_publish_chain_config(publish_chain_config: PublishChainConfig): void;
-  _set_publish_chain_config(publish_chain_config: PublishChainConfig): void {
+  abstract set_publish_chain_config(publish_chain_config: PublishChainConfig): NearPromise;
+  _set_publish_chain_config(publish_chain_config: PublishChainConfig): NearPromise {
     this._assert_operator();
     assert(publish_chain_config.chain_id != null && publish_chain_config.chain_id.length <= 20, "chain_id can't be null and the length should <= 20");
     assert(publish_chain_config.xapi_address != null && publish_chain_config.xapi_address.length == 42, "xapi_address can't be null and the length should be 42.");
@@ -348,8 +348,21 @@ export abstract class Aggregator extends ContractBase {
     assert(publish_chain_config.publish_fee != null && publish_chain_config.publish_fee.length <= 78, "publish_fee can't be null and the length should <= 78");
     assert(publish_chain_config.reward_address != null && publish_chain_config.reward_address.length == 42, "reward_address can't be null and the length should be 42.");
     const _publish_config = new PublishChainConfig({ ...publish_chain_config });
+
+    const _required_deposit = this._storage_deposit(publish_chain_config) + BigInt(30 ** 24);
+    const _surplus = near.attachedDeposit() - _required_deposit;
+    assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
+    let promise = null;
+    if (_surplus > 0) {
+      near.log(`Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}, refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      promise = NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
+
     this.publish_chain_config_lookup.set(publish_chain_config.chain_id, _publish_config);
     new SetPublishChainConfigEvent(_publish_config).emit();
+    if (promise) {
+      return promise;
+    }
   }
 
   abstract sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId, mpc_options: MpcOptions }): NearPromise;
@@ -740,7 +753,7 @@ export abstract class Aggregator extends ContractBase {
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
     const _yocto_per_byte = BigInt(10 ** 22) / BigInt(1024);
-    return _bytes * _yocto_per_byte * BigInt(2);
+    return _bytes * _yocto_per_byte * BigInt(3);
   }
 
   private _promise_result({ promise_index }: { promise_index: PromiseIndex }): { result: string; success: boolean } {
