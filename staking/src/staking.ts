@@ -63,14 +63,8 @@ class Staking extends ContractBase implements FungibleReceiver {
     this.total_staked = BigInt(0);
     this.staked_map = new UnorderedMap("staking");
     this.token_account = "3beb2cf5c2c050bc575350671aa5f06e589386e8.factory.sepolia.testnet";
-    // todo update
-    this.unlock_period = BigInt(0);
-  }
-
-  @migrate({})
-  _clear_state() {
-    assert(near.signerAccountId() == near.currentAccountId(), "Require owner");
-    near.storageRemove("STATE");
+    // nano seconds, 14 days
+    this.unlock_period = BigInt(1209600000000000);
   }
 
   // calls
@@ -242,8 +236,13 @@ class Staking extends ContractBase implements FungibleReceiver {
   }
 
   @view({})
-  get_token_account() {
+  get_token_account(): string {
     return this.token_account;
+  }
+
+  @view({})
+  get_unlock_period(): string {
+    return this.unlock_period.toString();
   }
 
   @view({})
