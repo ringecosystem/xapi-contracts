@@ -23,7 +23,7 @@ contract XAPI is IXAPI, Ownable2Step {
         require(!aggregatorConfig.suspended, "Suspended");
 
         uint256 feeRequired = aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
-        require(msg.value >= feeRequired, "Insufficient fees");
+        require(msg.value == feeRequired, "!value");
 
         requestCount++;
         uint256 requestId = encodeRequestId(requestCount);
@@ -115,6 +115,12 @@ contract XAPI is IXAPI, Ownable2Step {
         });
 
         emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress, version);
+    }
+
+    function fee(address exAggregator) external view returns (uint256) {
+        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[exAggregator];
+        require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
+        return aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
     }
 
     function suspendAggregator(address exAggregator) external onlyOwner {
