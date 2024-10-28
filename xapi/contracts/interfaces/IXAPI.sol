@@ -52,7 +52,12 @@ interface IXAPI {
     event Fulfilled(uint256 indexed requestId, ResponseData response, RequestStatus indexed status);
     event RewardsWithdrawn(address indexed withdrawer, uint256 amount);
     event AggregatorConfigSet(
-        address indexed exAggregator, uint256 reportersFee, uint256 publishFee, string aggregator, address rewardAddress, uint256 version
+        address indexed exAggregator,
+        uint256 reportersFee,
+        uint256 publishFee,
+        string aggregator,
+        address rewardAddress,
+        uint256 version
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
@@ -75,6 +80,8 @@ interface IXAPI {
         address rewardAddress,
         uint256 version
     ) external;
+
+    function fee(address exAggregator) external view returns (uint256);
 
     function suspendAggregator(address exAggregator) external;
 }
