@@ -1,5 +1,5 @@
 // Find all our documentation at https://docs.near.org
-import { NearBindgen, near, call, view, migrate, assert, NearPromise, AccountId } from "near-sdk-js";
+import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
@@ -9,14 +9,14 @@ class OrmpAggregator extends Aggregator {
 
   constructor() {
     super({
-      description: "ORMP Aggregator",
+      description: "Test Aggregator",
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: BigInt(10 ** 24).toString() }),
       reporter_required: new ReporterRequired(1, 1),
       // todo update staking contract
       staking_contract: "stake.guantong.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
-        link: "https://github.com/xapi-box/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
+        link: "https://github.com/ringecosystem/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
         standards: [new Standard("nep330", "1.1.0"), new Standard("nep297", "1.0.0")]
       })
     });
@@ -119,13 +119,6 @@ class OrmpAggregator extends Aggregator {
       result: most_common_answer,
       count: answer_frequency[most_common_answer]
     }
-  }
-
-  // todo remove
-  @migrate({})
-  _clear_state() {
-    this._assert_operator();
-    near.storageRemove("STATE");
   }
 
   /// Calls
