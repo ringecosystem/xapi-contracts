@@ -244,7 +244,7 @@ export class Staked {
 
 // Derivation path prefix for mpc
 const DERIVATION_PATH_PREFIX = "XAPI";
-const DEFAULT_MAX_RESULT_LENGTH = 500;
+const DEFAULT_MAX_RESULT_LENGTH = 300;
 
 export abstract class Aggregator extends ContractBase {
   description: string;
@@ -484,18 +484,18 @@ export abstract class Aggregator extends ContractBase {
       assert(answers[i].result.length <= this.max_result_length, `answers[${i}].result.length > ${this.max_result_length}`);
     }
 
+    const _deposit = near.attachedDeposit();
+    const _required_deposit = this._storage_deposit({ request_id, answers, reward_address });
+    assert(
+      _deposit == _required_deposit,
+      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
+    );
+
     const __report = new Report({
       request_id,
       answers,
       reward_address
     });
-
-    const _deposit = near.attachedDeposit();
-    const _required_deposit = this._storage_deposit(__report);
-    assert(
-      _deposit == _required_deposit,
-      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
-    );
 
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
@@ -644,7 +644,7 @@ export abstract class Aggregator extends ContractBase {
     this._aggregate({ request_id, top_staked: _top_staked });
 
     const _response = this.response_lookup.get(request_id);
-    if (_response.result) {
+    if (_response.result || _response.error_code) {
       _response.chain_id = (BigInt(request_id) >> BigInt(192)).toString();
       _response.updated_at = near.blockTimestamp().toString();
       _response.status = RequestStatus[RequestStatus.AGGREGATED];

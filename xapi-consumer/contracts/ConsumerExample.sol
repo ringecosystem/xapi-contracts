@@ -28,7 +28,8 @@ contract ConsumerExample is IXAPIConsumer {
 
     function xapiCallback(uint256 requestId, ResponseData memory response) external {
         require(msg.sender == address(xapi), "Only XAPI can call this function");
-
-        emit ConsumeResult(requestId, response.result, response.errorCode);
+        if (response.errorCode != 0) {
+            emit ConsumeResult(requestId, response.result, response.errorCode);
+        }
     }
 }
