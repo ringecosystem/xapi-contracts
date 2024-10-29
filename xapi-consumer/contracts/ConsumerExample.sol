@@ -9,6 +9,7 @@ contract ConsumerExample is IXAPIConsumer {
 
     event RequestMade(uint256 requestId, string requestData);
     event ConsumeResult(uint256 requestId, bytes responseData, uint16 errorCode);
+    event ConsumeError(uint256 requestId, uint16 errorCode);
 
     constructor(address xapiAddress) {
         xapi = IXAPI(xapiAddress);
@@ -30,6 +31,8 @@ contract ConsumerExample is IXAPIConsumer {
         require(msg.sender == address(xapi), "Only XAPI can call this function");
         if (response.errorCode != 0) {
             emit ConsumeResult(requestId, response.result, response.errorCode);
+        } else {
+            emit ConsumeError(requestId, response.errorCode);
         }
     }
 }

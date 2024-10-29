@@ -64,7 +64,7 @@ export class DataSource {
   headers: Object;
   body_json: Object;
   query_json: Object;
-  // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `,`
+  // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `.`
   result_path: string;
   auth: DataAuth;
 
@@ -535,7 +535,10 @@ export abstract class Aggregator extends ContractBase {
     assert(data_source.name != null, "Datasource name is null");
     assert(data_source.method != null, "Datasource method is null");
     assert(data_source.url != null, "Datasource url is null");
-    assert(data_source.result_path != null, "Datasource result_path is null")
+
+    if (!data_source.result_path) {
+      data_source.result_path = "";
+    }
 
     assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
 
