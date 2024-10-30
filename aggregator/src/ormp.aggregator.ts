@@ -81,8 +81,8 @@ class OrmpAggregator extends Aggregator {
       near.log("most_common_report: ", most_common_report);
 
       const result = most_common_report.result;
-      assert(_valid_reporters.length >= this.reporter_required.quorum, `Quorum: required ${this.reporter_required.quorum}, but got ${_valid_reporters.length}`);
-      assert(most_common_report.count >= this.reporter_required.threshold, `Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
+      assert(_valid_reporters.length >= this.reporter_required.threshold, `valid_reporters, Threshold: required ${this.reporter_required.threshold}, but got ${_valid_reporters.length}`);
+      assert(most_common_report.count >= this.reporter_required.threshold, `most_common_report, Threshold: required ${this.reporter_required.threshold}, but got ${most_common_report.count}`)
 
       const _response = this.response_lookup.get(request_id);
 
