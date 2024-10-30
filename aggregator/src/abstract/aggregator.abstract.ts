@@ -349,7 +349,7 @@ export abstract class Aggregator extends ContractBase {
     assert(publish_chain_config.reward_address != null && publish_chain_config.reward_address.length == 42, "reward_address can't be null and the length should be 42.");
     const _publish_config = new PublishChainConfig({ ...publish_chain_config });
 
-    const _required_deposit = this._storage_deposit(publish_chain_config) + BigInt(30 ** 24);
+    const _required_deposit = this._storage_deposit(publish_chain_config);
     const _surplus = near.attachedDeposit() - _required_deposit;
     assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
     let promise = null;
@@ -755,7 +755,7 @@ export abstract class Aggregator extends ContractBase {
     const _bytes = BigInt(sizeOf(obj));
     // 100KB == 1Near == 10^24 yoctoNear
     // 1024 bytes == 10^22 yoctoNear
-    const _yocto_per_byte = BigInt(10 ** 22) / BigInt(1024);
+    const _yocto_per_byte = BigInt("10000000000000000000000") / BigInt(1024);
     return _bytes * _yocto_per_byte * BigInt(3);
   }
 
