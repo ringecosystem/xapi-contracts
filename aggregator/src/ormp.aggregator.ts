@@ -12,8 +12,7 @@ class OrmpAggregator extends Aggregator {
       description: "Test Aggregator",
       mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: "500000000000000000000000" }),
       reporter_required: new ReporterRequired(3, 5),
-      // todo update
-      staking_contract: "stake.guantong.testnet",
+      staking_contract: "staking.xapi.testnet",
       contract_metadata: new ContractSourceMetadata({
         version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
         link: "https://github.com/ringecosystem/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",

@@ -10,9 +10,9 @@ XAPI Consumer Example: `0xe1b9Afa1E60148C8b0E455a10D8DAD8b325Ac2c8`
 
 ### On Near testnet
 
-ORMP Aggregator: `ormpaggregator.guantong.testnet`
+Test Aggregator: `aggregator.xapi.testnet`
 
-ORMP Staking: `stake.guantong.testnet`
+Test Staking: `staking.xapi.testnet`
 
 ## xRING on Near
 

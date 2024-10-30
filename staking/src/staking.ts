@@ -67,6 +67,10 @@ class Staking extends ContractBase implements FungibleReceiver {
     this.unlock_period = BigInt(1209600000000000);
   }
 
+  _assert_operator(): void {
+    assert(near.signerAccountId() == near.currentAccountId(), `Permission denied, ${near.signerAccountId()} != ${near.currentAccountId()}`);
+  }
+
   // calls
 
   @call({})
@@ -157,8 +161,7 @@ class Staking extends ContractBase implements FungibleReceiver {
 
   @call({})
   slash({ account_id, amount }: { account_id: AccountId, amount: string }) {
-    // todo multisig?
-    assert(near.signerAccountId() === near.currentAccountId(), "Only the owner can slash");
+    this._assert_operator();
     const penalty_amount = BigInt(amount);
 
     let staked = this.staked_map.get(account_id);
@@ -192,8 +195,7 @@ class Staking extends ContractBase implements FungibleReceiver {
 
   @call({})
   set_unlock_period({ period }: { period: string }) {
-    // todo check
-    assert(near.signerAccountId() == near.currentAccountId(), "Require owner");
+    this._assert_operator();
     assert(BigInt(period) > 0, "Period should greater than 0");
     this.unlock_period = BigInt(period);
     new UnlockPeriodUpdateEvent({ period }).emit();
