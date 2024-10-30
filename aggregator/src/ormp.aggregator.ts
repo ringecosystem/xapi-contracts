@@ -14,7 +14,7 @@ class OrmpAggregator extends Aggregator {
       reporter_required: new ReporterRequired(3, 5),
       staking_contract: "staking.xapi.testnet",
       contract_metadata: new ContractSourceMetadata({
-        version: "56d1e9e35257ff6712159ccfefc4aae830469b32",
+        version: "679c9bd28540f5d335e649426a4a87f0ee09ef21",
         link: "https://github.com/ringecosystem/xapi-contracts/blob/main/aggregator/src/ormp.aggregator.ts",
         standards: [new Standard("nep330", "1.1.0"), new Standard("nep297", "1.0.0")]
       })
