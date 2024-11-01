@@ -1,0 +1,320 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0x258E2B5bFCf2DF7e633B95abDc81A43C2073dA6d",
+      "txHash": "0x01b1a063b897d491370cc8245fb1fc5be440064cc199500704e5e6bdf6290915",
+      "kind": "uups"
+    }
+  ],
+  "impls": {
+    "2f68d02fa5876747aa05c5013bfb905c6ce389b8b39be46eccafab81e3651cdd": {
+      "address": "0x182eFb0856236C932E4daD4Dd3F5CdcdEb685b2c",
+      "txHash": "0x1d4d7a5875c6b53fe0b3c9eec8c5ab2c62c4421c8f70d4844e2bdf7956dd21ed",
+      "layout": {
+        "solcVersion": "0.8.24",
+        "storage": [
+          {
+            "label": "requestCount",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "contract": "XAPI",
+            "src": "contracts/XAPI.sol:10"
+          },
+          {
+            "label": "requests",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_uint256,t_struct(Request)2102_storage)",
+            "contract": "XAPI",
+            "src": "contracts/XAPI.sol:11"
+          },
+          {
+            "label": "aggregatorConfigs",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_struct(AggregatorConfig)2127_storage)",
+            "contract": "XAPI",
+            "src": "contracts/XAPI.sol:12"
+          },
+          {
+            "label": "rewards",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "XAPI",
+            "src": "contracts/XAPI.sol:13"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)128_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(Ownable2StepStorage)13_storage": {
+            "label": "struct Ownable2StepUpgradeable.Ownable2StepStorage",
+            "members": [
+              {
+                "label": "_pendingOwner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)68_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_address)dyn_storage": {
+            "label": "address[]",
+            "numberOfBytes": "32"
+          },
+          "t_bytes4": {
+            "label": "bytes4",
+            "numberOfBytes": "4"
+          },
+          "t_bytes_storage": {
+            "label": "bytes",
+            "numberOfBytes": "32"
+          },
+          "t_enum(RequestStatus)2106": {
+            "label": "enum RequestStatus",
+            "members": [
+              "Pending",
+              "Fulfilled",
+              "CallbackFailed"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_struct(AggregatorConfig)2127_storage)": {
+            "label": "mapping(address => struct AggregatorConfig)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Request)2102_storage)": {
+            "label": "mapping(uint256 => struct Request)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AggregatorConfig)2127_storage": {
+            "label": "struct AggregatorConfig",
+            "members": [
+              {
+                "label": "aggregator",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "rewardAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "reportersFee",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "publishFee",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "version",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "suspended",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_struct(Request)2102_storage": {
+            "label": "struct Request",
+            "members": [
+              {
+                "label": "aggregator",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "requestData",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "requester",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "callbackContract",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "callbackFunction",
+                "type": "t_bytes4",
+                "offset": 20,
+                "slot": "3"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(RequestStatus)2106",
+                "offset": 24,
+                "slot": "3"
+              },
+              {
+                "label": "exAggregator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "response",
+                "type": "t_struct(ResponseData)2114_storage",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "payment",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "8"
+              }
+            ],
+            "numberOfBytes": "288"
+          },
+          "t_struct(ResponseData)2114_storage": {
+            "label": "struct ResponseData",
+            "members": [
+              {
+                "label": "reporters",
+                "type": "t_array(t_address)dyn_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "result",
+                "type": "t_bytes_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "errorCode",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable2Step": [
+            {
+              "contract": "Ownable2StepUpgradeable",
+              "label": "_pendingOwner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol:29",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

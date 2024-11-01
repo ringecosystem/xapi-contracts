@@ -6,9 +6,11 @@
   "scripts": {
     "build": "npx hardhat compile",
     "clear": "npx hardhat clean",
+    "proxy-upgrade": "npx hardhat run scripts/XAPI.upgrade.js  --network sepolia",
+    "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network sepolia",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
-    "verify": "npx hardhat verify --network sepolia 0x6D83b038d5bF428a8C3fF34bf1b380b3A2acA6fe",
+    "verify": "npx hardhat verify --network sepolia 0x258E2B5bFCf2DF7e633B95abDc81A43C2073dA6d",
     "test": "npx hardhat test"
   },
   "devDependencies": {
@@ -19,6 +21,7 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.11",
+    "@openzeppelin/hardhat-upgrades": "^3.5.0",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "chai": "^4.2.0",
@@ -29,6 +32,7 @@
     "typechain": "^8.3.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.0.2"
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.1.0"
   }
 }
