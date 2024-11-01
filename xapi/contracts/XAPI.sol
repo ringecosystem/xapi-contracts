@@ -1,20 +1,33 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IXAPI.sol";
 
-contract XAPI is IXAPI, Ownable2Step {
+contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable {
     uint256 public requestCount;
     mapping(uint256 => Request) public requests;
     mapping(address => AggregatorConfig) public aggregatorConfigs;
     mapping(address => uint256) public rewards;
 
-    constructor() Ownable(msg.sender) {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+    }
 
     function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
         external
         payable
+        override
         returns (uint256)
     {
         require(msg.sender != address(this), "CANT call self");
@@ -50,7 +63,7 @@ contract XAPI is IXAPI, Ownable2Step {
         return requestId;
     }
 
-    function fulfill(uint256 requestId, ResponseData memory response) external {
+    function fulfill(uint256 requestId, ResponseData memory response) external override {
         Request storage request = requests[requestId];
         require(decodeChainId(requestId) == block.chainid, "!chainId");
         require(request.exAggregator != address(0), "!Request");
@@ -75,7 +88,7 @@ contract XAPI is IXAPI, Ownable2Step {
         emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function retryFulfill(uint256 requestId) external {
+    function retryFulfill(uint256 requestId) external override {
         Request storage request = requests[requestId];
         require(request.status == RequestStatus.CallbackFailed, "!Callback failed request");
         require(msg.sender == request.requester, "!Requester");
@@ -88,7 +101,7 @@ contract XAPI is IXAPI, Ownable2Step {
         emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function withdrawRewards() external {
+    function withdrawRewards() external override {
         uint256 amount = rewards[msg.sender];
         require(amount > 0, "Insufficient rewards");
 
@@ -104,7 +117,7 @@ contract XAPI is IXAPI, Ownable2Step {
         uint256 publishFee,
         address rewardAddress,
         uint256 version
-    ) external {
+    ) external override {
         aggregatorConfigs[msg.sender] = AggregatorConfig({
             aggregator: aggregator,
             reportersFee: reportersFee,
@@ -117,13 +130,13 @@ contract XAPI is IXAPI, Ownable2Step {
         emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress, version);
     }
 
-    function fee(address exAggregator) external view returns (uint256) {
+    function fee(address exAggregator) external view override returns (uint256) {
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[exAggregator];
         require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
         return aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
     }
 
-    function suspendAggregator(address exAggregator) external onlyOwner {
+    function suspendAggregator(address exAggregator) external override onlyOwner {
         require(aggregatorConfigs[exAggregator].rewardAddress != address(0), "!Aggregator");
         aggregatorConfigs[exAggregator].suspended = true;
 
