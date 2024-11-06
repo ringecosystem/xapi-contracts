@@ -13,7 +13,8 @@ struct Request {
     // Derived address of aggregator account (on near)
     address exAggregator;
     ResponseData response;
-    uint256 payment;
+    uint256 reportersFee;
+    uint256 publishFee;
 }
 
 enum RequestStatus {
