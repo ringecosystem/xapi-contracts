@@ -12,7 +12,8 @@ module.exports = {
     sepolia: {
       url: "https://rpc.sepolia.org",
       chainId: 11155111,
-      accounts: [PRIVATE_KEY]
+      accounts: [PRIVATE_KEY],
+      timeout: 60000
     }
   },
   etherscan: {

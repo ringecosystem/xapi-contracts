@@ -45,7 +45,8 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
             callbackContract: msg.sender,
             callbackFunction: callbackFunction,
             status: RequestStatus.Pending,
-            payment: msg.value,
+            reportersFee: aggregatorConfig.reportersFee,
+            publishFee: aggregatorConfig.publishFee,
             aggregator: aggregatorConfig.aggregator,
             exAggregator: exAggregator,
             response: ResponseData({reporters: new address[](0), result: new bytes(0), errorCode: 0}),
@@ -73,12 +74,10 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         request.response = response;
 
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[msg.sender];
-        // Avoid changing the reward configuration after the request but before the response to obtain the contract balance
-        require(aggregatorConfig.publishFee + aggregatorConfig.reportersFee <= request.payment, "Insufficient rewards");
         for (uint256 i = 0; i < response.reporters.length; i++) {
-            rewards[response.reporters[i]] += aggregatorConfig.reportersFee / response.reporters.length;
+            rewards[response.reporters[i]] += request.reportersFee / response.reporters.length;
         }
-        rewards[aggregatorConfig.rewardAddress] += aggregatorConfig.publishFee;
+        rewards[aggregatorConfig.rewardAddress] += request.publishFee;
 
         (bool success,) =
             request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));

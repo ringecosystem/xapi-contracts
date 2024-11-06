@@ -6,4 +6,4 @@ async function upgrade(oldAddress) {
     console.log("XAPI upgraded");
 }
 
-upgrade("0x258E2B5bFCf2DF7e633B95abDc81A43C2073dA6d");
+upgrade("0x7DE29a6ee2d6B1BfC4DE88d278107Cf65261f698");
