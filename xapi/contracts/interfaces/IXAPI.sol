@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
+import "../lib/XAPIBuilder.sol";
+
 struct Request {
     // Currently, aggregators is deployed on Near. So use `string` type.
     string aggregator;
-    // JSON string
-    string requestData;
+    XAPIBuilder.Request requestData;
     address requester;
-    address callbackContract;
-    bytes4 callbackFunction;
     RequestStatus status;
-    // Derived address of aggregator account (on near)
-    address exAggregator;
     ResponseData response;
     uint256 reportersFee;
     uint256 publishFee;
@@ -44,9 +41,8 @@ interface IXAPI {
     event RequestMade(
         uint256 indexed requestId,
         string aggregator,
-        string requestData,
+        XAPIBuilder.Request requestData,
         address indexed requester,
-        address indexed exAggregator,
         uint256 reportersFee,
         uint256 publishFee
     );
@@ -62,7 +58,7 @@ interface IXAPI {
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
 
-    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
+    function makeRequest(XAPIBuilder.Request memory requestData)
         external
         payable
         returns (uint256);

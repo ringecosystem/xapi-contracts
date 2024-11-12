@@ -10,7 +10,7 @@
     "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network sepolia",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
-    "verify": "npx hardhat verify --network sepolia 0x7DE29a6ee2d6B1BfC4DE88d278107Cf65261f698",
+    "verify": "npx hardhat verify --network sepolia 0xB78cbcD4389986Fe4F837d4fD92700543F1080a6",
     "test": "npx hardhat test"
   },
   "devDependencies": {
@@ -32,6 +32,7 @@
     "typechain": "^8.3.0"
   },
   "dependencies": {
+    "@chainlink/contracts": "^1.3.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.1.0"
   }
