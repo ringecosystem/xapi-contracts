@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, ChainId, DataSource, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 
 @NearBindgen({})
@@ -158,16 +158,6 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({ payableFunction: true })
-  add_data_source(data_source: DataSource): NearPromise {
-    return super._add_data_source(data_source);
-  }
-
-  @call({})
-  remove_data_source({ data_source_name }: { data_source_name: string; }): void {
-    super._remove_data_source({ data_source_name });
-  }
-
-  @call({ payableFunction: true })
   set_publish_chain_config(publis_chain_config: PublishChainConfig): NearPromise {
     return super._set_publish_chain_config(publis_chain_config);
   }
@@ -233,10 +223,6 @@ class OrmpAggregator extends Aggregator {
   @view({})
   get_response({ request_id }: { request_id: RequestId; }): Response {
     return super._get_response({ request_id });
-  }
-  @view({})
-  get_data_sources(): DataSource[] {
-    return super._get_data_sources()
   }
   @view({})
   get_max_result_length(): number {
