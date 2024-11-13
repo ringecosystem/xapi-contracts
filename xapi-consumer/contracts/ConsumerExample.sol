@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.0;
 
 import "./interfaces/IXAPIConsumer.sol";
 import "xapi/contracts/interfaces/IXAPI.sol";
