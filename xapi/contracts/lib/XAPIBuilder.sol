@@ -77,7 +77,7 @@ library XAPIBuilder {
      * @param url Api url
      * @param resultPath Result path, split by `.`
      * @param headers Request headers
-     * @param authSpec For example: `headers.Authorization:env.API_TOKEN`, `query.token:env:API_TOKEN`, `body.authorization.token:env.API_TOKEN`
+     * @param auth For example: headers.Authorization:env.API_TOKEN,query.token:env:API_TOKEN,body.authorization.token:env.API_TOKEN
      *
      */
     function _startDataSourceEx(
@@ -87,7 +87,7 @@ library XAPIBuilder {
         string memory url,
         string memory resultPath,
         string memory headers,
-        string memory authSpec
+        string memory auth
     ) internal pure {
         self.buf.encodeString(name);
         self.buf.startMap();
@@ -99,8 +99,8 @@ library XAPIBuilder {
         self.buf.encodeString(resultPath);
         self.buf.encodeString("headers");
         self.buf.encodeString(headers);
-        self.buf.encodeString("authSpec");
-        self.buf.encodeString(authSpec);
+        self.buf.encodeString("auth");
+        self.buf.encodeString(auth);
         self.buf.encodeString("params");
         self.buf.startMap();
     }

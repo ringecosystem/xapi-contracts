@@ -22,6 +22,19 @@ contract ConsumerExample is IXAPIConsumer {
         xapi = IXAPI(xapiAddress);
     }
 
+    function makeRequestEx(address exAggregator) external payable {
+        XAPIBuilder.Request memory requestData;
+        requestData._initialize(exAggregator, this.xapiCallback.selector);
+        requestData._startDataSourceEx("httpbin", "get", "https://httpbin.org/get?a=4", "args.a", '{"hello":"world"}', "headers.authorization:env.HTTPBIN_API_KEY");
+        requestData._endDataSource();
+        requestData._finalizeRequest();
+
+        uint256 fee = xapi.fee(exAggregator);
+        payable(msg.sender).transfer(msg.value - fee);
+        uint256 requestId = xapi.makeRequest{value: fee}(requestData);
+        emit RequestMade(requestId, requestData);
+    }
+
     function makeRequest(address exAggregator) external payable {
         XAPIBuilder.Request memory requestData;
         requestData._initialize(exAggregator, this.xapiCallback.selector);
