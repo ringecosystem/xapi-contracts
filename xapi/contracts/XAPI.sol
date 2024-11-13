@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IXAPI.sol";
+import "./lib/XAPIBuilder.sol";
 
 contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable {
     uint256 public requestCount;
@@ -24,14 +25,14 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         __UUPSUpgradeable_init();
     }
 
-    function makeRequest(address exAggregator, string memory requestData, bytes4 callbackFunction)
+    function makeRequest(XAPIBuilder.Request memory requestData)
         external
         payable
         override
         returns (uint256)
     {
         require(msg.sender != address(this), "CANT call self");
-        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[exAggregator];
+        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[requestData.exAggregator];
         require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
@@ -42,13 +43,10 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         uint256 requestId = encodeRequestId(requestCount);
         requests[requestId] = Request({
             requester: msg.sender,
-            callbackContract: msg.sender,
-            callbackFunction: callbackFunction,
             status: RequestStatus.Pending,
             reportersFee: aggregatorConfig.reportersFee,
             publishFee: aggregatorConfig.publishFee,
             aggregator: aggregatorConfig.aggregator,
-            exAggregator: exAggregator,
             response: ResponseData({reporters: new address[](0), result: new bytes(0), errorCode: 0}),
             requestData: requestData
         });
@@ -57,7 +55,6 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
             aggregatorConfig.aggregator,
             requestData,
             msg.sender,
-            exAggregator,
             aggregatorConfig.reportersFee,
             aggregatorConfig.publishFee
         );
@@ -67,8 +64,8 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     function fulfill(uint256 requestId, ResponseData memory response) external override {
         Request storage request = requests[requestId];
         require(decodeChainId(requestId) == block.chainid, "!chainId");
-        require(request.exAggregator != address(0), "!Request");
-        require(msg.sender == request.exAggregator, "!exAggregator address");
+        require(request.requestData.exAggregator != address(0), "!Request");
+        require(msg.sender == request.requestData.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
 
         request.response = response;
@@ -80,7 +77,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         rewards[aggregatorConfig.rewardAddress] += request.publishFee;
 
         (bool success,) =
-            request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, response));
+            request.requester.call(abi.encodeWithSelector(request.requestData.callbackFunctionId, requestId, response));
 
         request.status = success ? RequestStatus.Fulfilled : RequestStatus.CallbackFailed;
 
@@ -92,8 +89,9 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         require(request.status == RequestStatus.CallbackFailed, "!Callback failed request");
         require(msg.sender == request.requester, "!Requester");
 
-        (bool success,) =
-            request.callbackContract.call(abi.encodeWithSelector(request.callbackFunction, requestId, request.response));
+        (bool success,) = request.requester.call(
+            abi.encodeWithSelector(request.requestData.callbackFunctionId, requestId, request.response)
+        );
 
         request.status = success ? RequestStatus.Fulfilled : RequestStatus.CallbackFailed;
 
