@@ -2,6 +2,7 @@
 import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, DataSource, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
+import { encodeParameter } from "./lib/ethereum";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator {
@@ -96,9 +97,23 @@ class OrmpAggregator extends Aggregator {
         }
       }
 
-      _response.result = result;
+      _response.result = this._encode_result(result.split(","));
+
       this.response_lookup.set(request_id, _response);
     }
+  }
+
+  _encode_result(params: any[]): string {
+    const offsetBytes = ((96).toString(16)).padStart(64, '0');
+
+    const encodeParams = [
+      encodeParameter("uint256", params[0]),
+      encodeParameter("address", params[1]),
+      encodeParameter("uint256", params[2]),
+      offsetBytes,
+      encodeParameter("bytes32", params[3])
+    ].join('');
+    return encodeParams;
   }
 
   _aggregate_answer(answers: string[]): { result: string, count: number } {

@@ -188,6 +188,7 @@ export class Response {
   status: string;
 
   // 👇 These values should be aggregated from reporter's answer
+  // !!! Encode it to bytes in _aggregate
   result: string;
   // Leave it 0 if there's no error. MAX: 65535(uint16)
   error_code: number;
@@ -660,7 +661,7 @@ export abstract class Aggregator extends ContractBase {
         BigInt(request_id),
         [
           _response.reporter_reward_addresses,
-          stringToBytes(_response.result),
+          _response.result,
           _response.error_code || 0
         ]
       ]
