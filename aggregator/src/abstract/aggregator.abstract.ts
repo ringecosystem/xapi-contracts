@@ -57,6 +57,28 @@ class DataAuth {
   }
 }
 
+export class DataSource {
+  name: string;
+  url: string;
+  method: string;
+  headers: Object;
+  body_json: Object;
+  query_json: Object;
+  // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `.`
+  result_path: string;
+  auth: DataAuth;
+  constructor({ name, url, method, headers, body_json, query_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, query_json: Object, result_path: string, auth: DataAuth }) {
+    this.name = name;
+    this.url = url;
+    this.method = method;
+    this.headers = headers;
+    this.body_json = body_json;
+    this.query_json = query_json;
+    this.result_path = result_path;
+    this.auth = auth;
+  }
+}
+
 export class Answer {
   data_source_name: string;
   result: string;
@@ -67,6 +89,17 @@ export class Answer {
     this.data_source_name = data_source_name;
     this.result = result;
     this.error = error;
+  }
+}
+
+class AddDataSourceEvent extends Nep297Event {
+  constructor(data: DataSource) {
+    super("AddDataSource", data)
+  }
+}
+class RemoveDataSourceEvent extends Nep297Event {
+  constructor(data: DataSource) {
+    super("RemoveDataSource", data)
   }
 }
 
@@ -220,6 +253,8 @@ export abstract class Aggregator extends ContractBase {
   mpc_config: MpcConfig;
   staking_contract: AccountId;
   reporter_required: ReporterRequired;
+  // key: data_source name
+  data_sources: UnorderedMap<DataSource>;
   // key: request_id, subKey: reporter accountId
   report_lookup: LookupMap<Report[]>;
   // key: request_id
@@ -234,6 +269,7 @@ export abstract class Aggregator extends ContractBase {
     this.mpc_config = mpc_config;
     this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
+    this.data_sources = new UnorderedMap("data_sources");
     this.report_lookup = new LookupMap("report_lookup");
     this.response_lookup = new LookupMap("response_lookup");
     this.publish_chain_config_lookup = new LookupMap("publish_chain_config_lookup");
@@ -486,6 +522,73 @@ export abstract class Aggregator extends ContractBase {
     this.response_lookup.set(request_id, _response);
     new ReportEvent(__report).emit();
     return this._try_aggregate({ request_id });
+  }
+
+  abstract add_data_source(data_source: DataSource): NearPromise;
+  _add_data_source(data_source: DataSource): NearPromise {
+    this._assert_operator();
+    assert(data_source.name != null, "Datasource name is null");
+    assert(data_source.method != null, "Datasource method is null");
+    assert(data_source.url != null, "Datasource url is null");
+    if (!data_source.result_path) {
+      data_source.result_path = "";
+    }
+    assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
+    const _required_deposit = this._storage_deposit(data_source);
+    const _surplus = near.attachedDeposit() - _required_deposit;
+    assert(_surplus >= 0, `Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}`)
+    let promise = null;
+    if (_surplus > 0) {
+      near.log(`Attached: ${near.attachedDeposit()}, Require: ${_required_deposit}, refund more than required deposit ${_surplus} YOCTO to ${near.signerAccountId()}`);
+      promise = NearPromise.new(near.signerAccountId()).transfer(_surplus);
+    }
+    const checkMethod = data_source.method.toString();
+    if (checkMethod.toUpperCase() == "GET") {
+      data_source.method = RequestMethod[RequestMethod.GET];
+    } else if (checkMethod.toUpperCase() == "POST") {
+      data_source.method = RequestMethod[RequestMethod.POST];
+    } else if (checkMethod.toUpperCase() == "PUT") {
+      data_source.method = RequestMethod[RequestMethod.PUT];
+    } else if (checkMethod.toUpperCase() == "DELETE") {
+      data_source.method = RequestMethod[RequestMethod.DELETE];
+    } else if (checkMethod.toUpperCase() == "PATCH") {
+      data_source.method = RequestMethod[RequestMethod.PATCH];
+    } else {
+      assert(false, "method should be in [GET, POST, PUT, DELETE, PATCH]");
+    }
+    if (data_source.headers) {
+      assert(typeof data_source.headers == "object", "headers must be object");
+    }
+    if (data_source.body_json) {
+      assert(typeof data_source.body_json == "object", "body_json must be object");
+    }
+    if (data_source.query_json) {
+      assert(typeof data_source.query_json == "object", "query_json must be object");
+    }
+    if (data_source.auth) {
+      assert(
+        data_source.auth.place_path && data_source.auth.place_path.length > 0 &&
+        data_source.auth.value_path && data_source.auth.value_path.length > 0, "place_path and value_path of auth need to be set at the same time");
+      data_source.auth = new DataAuth(data_source.auth.place_path, data_source.auth.value_path);
+    } else {
+      data_source.auth = new DataAuth("", "");
+    }
+    this.data_sources.set(data_source.name, data_source);
+    new AddDataSourceEvent(data_source).emit();
+    if (promise) {
+      return promise.asReturn();
+    }
+  }
+  abstract remove_data_source({ data_source_name }: { data_source_name: string }): void;
+  _remove_data_source({ data_source_name }: { data_source_name: string }): void {
+    this._assert_operator();
+    const _removed = this.data_sources.remove(data_source_name);
+    assert(_removed != null, `${data_source_name} does not exist.`);
+    new RemoveDataSourceEvent(_removed).emit();
+  }
+  abstract get_data_sources(): DataSource[]
+  _get_data_sources(): DataSource[] {
+    return this.data_sources.toArray().map(entry => entry[1]);
   }
 
   abstract _can_aggregate({ request_id }: { request_id: RequestId }): boolean;

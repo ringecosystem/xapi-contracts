@@ -43,74 +43,6 @@ library XAPIBuilder {
     }
 
     /**
-     * @notice Start build data source
-     * @param self Request
-     * @param method Request method
-     * @param url Api url
-     * @param resultPath Result path, split by `.`
-     *
-     */
-    function _startDataSource(
-        Request memory self,
-        string memory name,
-        string memory method,
-        string memory url,
-        string memory resultPath
-    ) internal pure {
-        self.buf.encodeString(name);
-        self.buf.startMap();
-        self.buf.encodeString("method");
-        self.buf.encodeString(method);
-        self.buf.encodeString("url");
-        self.buf.encodeString(url);
-        self.buf.encodeString("resultPath");
-        self.buf.encodeString(resultPath);
-        self.buf.encodeString("params");
-        self.buf.startMap();
-    }
-
-    /**
-     * @notice Start build data source
-     * @param self Request
-     * @param name Data source name
-     * @param method Request method
-     * @param url Api url
-     * @param resultPath Result path, split by `.`
-     * @param headers Request headers
-     * @param auth For example: headers.Authorization:env.API_TOKEN,query.token:env:API_TOKEN,body.authorization.token:env.API_TOKEN
-     *
-     */
-    function _startDataSourceEx(
-        Request memory self,
-        string memory name,
-        string memory method,
-        string memory url,
-        string memory resultPath,
-        string memory headers,
-        string memory auth
-    ) internal pure {
-        self.buf.encodeString(name);
-        self.buf.startMap();
-        self.buf.encodeString("method");
-        self.buf.encodeString(method);
-        self.buf.encodeString("url");
-        self.buf.encodeString(url);
-        self.buf.encodeString("resultPath");
-        self.buf.encodeString(resultPath);
-        self.buf.encodeString("headers");
-        self.buf.encodeString(headers);
-        self.buf.encodeString("auth");
-        self.buf.encodeString(auth);
-        self.buf.encodeString("params");
-        self.buf.startMap();
-    }
-
-    function _endDataSource(Request memory self) internal pure {
-        self.buf.endSequence();
-        self.buf.endSequence();
-    }
-
-    /**
      * @notice Start build nested param
      * @param self Request
      * @param key param name
@@ -125,14 +57,6 @@ library XAPIBuilder {
      * @param self Request
      */
     function _endNestedParam(Request memory self) internal pure {
-        self.buf.endSequence();
-    }
-
-    /**
-     * @notice End request
-     * @param self Request
-     */
-    function _finalizeRequest(Request memory self) internal pure {
         self.buf.endSequence();
     }
 
