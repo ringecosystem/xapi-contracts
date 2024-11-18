@@ -2,7 +2,7 @@
 import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
 import { Aggregator, Answer, DataSource, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
-import { encodeParameter } from "./lib/ethereum";
+import { encodeParameter, stringToBytes } from "./lib/ethereum";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator {
@@ -37,6 +37,10 @@ class OrmpAggregator extends Aggregator {
       top_staked.some(staked => staked.account_id === reporter)
     );
     near.log("valid_reporters: ", JSON.stringify(_valid_reporters));
+    if (_valid_reporters.length == 0) {
+      near.log("No valid reporters");
+      return;
+    }
     const _reports = this.report_lookup.get(request_id);
     const _valid_reports = _reports.filter(r => _valid_reporters.includes(r.reporter));
 
@@ -74,6 +78,7 @@ class OrmpAggregator extends Aggregator {
         }
       }
       _response.error_code = 1;
+      _response.result = stringToBytes(null);
       this.response_lookup.set(request_id, _response);
     } else {
       // 3. Aggregate from multi reports
@@ -113,7 +118,7 @@ class OrmpAggregator extends Aggregator {
       offsetBytes,
       encodeParameter("bytes32", params[3])
     ].join('');
-    return encodeParams;
+    return '0x' + encodeParams;
   }
 
   _aggregate_answer(answers: string[]): { result: string, count: number } {
