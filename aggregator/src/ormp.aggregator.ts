@@ -109,13 +109,10 @@ class OrmpAggregator extends Aggregator {
   }
 
   _encode_result(params: any[]): string {
-    const offsetBytes = ((96).toString(16)).padStart(64, '0');
-
     const encodeParams = [
       encodeParameter("uint256", params[0]),
       encodeParameter("address", params[1]),
       encodeParameter("uint256", params[2]),
-      offsetBytes,
       encodeParameter("bytes32", params[3])
     ].join('');
     return '0x' + encodeParams;
