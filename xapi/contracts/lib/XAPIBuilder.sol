@@ -110,6 +110,28 @@ library XAPIBuilder {
         self.buf.endSequence();
     }
 
+    /**
+     * @notice Start build nested param
+     * @param self Request
+     * @param key param name
+     */
+    function _startNestedParam(Request memory self, string memory key) internal pure {
+        self.buf.encodeString(key);
+        self.buf.startMap();
+    }
+
+    /**
+     * @notice End nested param
+     * @param self Request
+     */
+    function _endNestedParam(Request memory self) internal pure {
+        self.buf.endSequence();
+    }
+
+    /**
+     * @notice End request
+     * @param self Request
+     */
     function _finalizeRequest(Request memory self) internal pure {
         self.buf.endSequence();
     }

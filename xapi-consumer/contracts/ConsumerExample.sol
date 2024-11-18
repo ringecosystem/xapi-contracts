@@ -25,7 +25,14 @@ contract ConsumerExample is IXAPIConsumer {
     function makeRequestEx(address exAggregator) external payable {
         XAPIBuilder.Request memory requestData;
         requestData._initialize(exAggregator, this.xapiCallback.selector);
-        requestData._startDataSourceEx("httpbin", "get", "https://httpbin.org/get?a=4", "args.a", '{"hello":"world"}', "headers.authorization:env.HTTPBIN_API_KEY");
+        requestData._startDataSourceEx(
+            "httpbin",
+            "get",
+            "https://httpbin.org/get?a=4",
+            "args.a",
+            '{"hello":"world"}',
+            "headers.authorization:env.HTTPBIN_API_KEY"
+        );
         requestData._endDataSource();
         requestData._finalizeRequest();
 
@@ -61,6 +68,35 @@ contract ConsumerExample is IXAPIConsumer {
         requestData._addParamUint("d", 5);
         requestData._endDataSource();
 
+        requestData._finalizeRequest();
+
+        uint256 fee = xapi.fee(exAggregator);
+        payable(msg.sender).transfer(msg.value - fee);
+        uint256 requestId = xapi.makeRequest{value: fee}(requestData);
+        emit RequestMade(requestId, requestData);
+    }
+
+    function queryGraph(address exAggregator) external payable {
+        XAPIBuilder.Request memory requestData;
+        requestData._initialize(exAggregator, this.xapiCallback.selector);
+        requestData._startDataSource(
+            "arbitrum graphql",
+            "post",
+            "https://ormponder.vercel.app/arbitrum",
+            "data.messageAcceptedV2s.items.0.msgHash"
+        );
+        requestData._addParam(
+            "query",
+            "query Accepted($chainId: BigInt!, $channel: String!, $msgIndex: BigInt!) {\n  messageAcceptedV2s(where: {messageFromChainId: $chainId, messageChannel: $channel, messageIndex: $msgIndex}) {\n    items {\n      msgHash\n    }\n  }\n}\n"
+        );
+        requestData._startNestedParam("variables");
+        {
+            requestData._addParamUint("chainId", 42161);
+            requestData._addParam("channel", "0x13b2211a7cA45Db2808F6dB05557ce5347e3634e");
+            requestData._addParamUint("msgIndex", 13);
+        }
+        requestData._endNestedParam();
+        requestData._endDataSource();
         requestData._finalizeRequest();
 
         uint256 fee = xapi.fee(exAggregator);
