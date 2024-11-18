@@ -65,16 +65,16 @@ export class DataSource {
   body_json: Object;
   query_json: Object;
   // https://docs.api3.org/reference/ois/latest/reserved-parameters.html#path, split by `.`
-  result_path: string;
+  result_paths: string[];
   auth: DataAuth;
-  constructor({ name, url, method, headers, body_json, query_json, result_path, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, query_json: Object, result_path: string, auth: DataAuth }) {
+  constructor({ name, url, method, headers, body_json, query_json, result_paths, auth }: { name: string, url: string, method: string, headers: Object, body_json: Object, query_json: Object, result_paths: string[], auth: DataAuth }) {
     this.name = name;
     this.url = url;
     this.method = method;
     this.headers = headers;
     this.body_json = body_json;
     this.query_json = query_json;
-    this.result_path = result_path;
+    this.result_paths = result_paths;
     this.auth = auth;
   }
 }
@@ -530,8 +530,8 @@ export abstract class Aggregator extends ContractBase {
     assert(data_source.name != null, "Datasource name is null");
     assert(data_source.method != null, "Datasource method is null");
     assert(data_source.url != null, "Datasource url is null");
-    if (!data_source.result_path) {
-      data_source.result_path = "";
+    if (!data_source.result_paths) {
+      data_source.result_paths = [];
     }
     assert(this.data_sources.get(data_source.name) == null, "Datasource name already exists");
     const _required_deposit = this._storage_deposit(data_source);
