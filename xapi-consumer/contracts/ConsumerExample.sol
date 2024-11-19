@@ -7,6 +7,7 @@ import "xapi/contracts/lib/XAPIBuilder.sol";
 
 contract ConsumerExample is IXAPIConsumer {
     using XAPIBuilder for XAPIBuilder.Request;
+    using CBORChainlink for BufferChainlink.buffer;
 
     IXAPI public xapi;
 
@@ -22,17 +23,26 @@ contract ConsumerExample is IXAPIConsumer {
         xapi = IXAPI(xapiAddress);
     }
 
-    function makeRequest(address exAggregator) external payable {
+    function simpleRequest(address exAggregator) external payable {
         XAPIBuilder.Request memory requestData;
         requestData._initialize(exAggregator, this.xapiCallback.selector);
-
+        requestData._addParam("_dataSources", "11155111");
         uint256 fee = xapi.fee(exAggregator);
         payable(msg.sender).transfer(msg.value - fee);
         uint256 requestId = xapi.makeRequest{value: fee}(requestData);
         emit RequestMade(requestId, requestData);
     }
 
-    function queryGraph(address exAggregator) external payable {
+    function emptyParamRequest(address exAggregator) external payable {
+        XAPIBuilder.Request memory requestData;
+        requestData._initialize(exAggregator, this.xapiCallback.selector);
+        uint256 fee = xapi.fee(exAggregator);
+        payable(msg.sender).transfer(msg.value - fee);
+        uint256 requestId = xapi.makeRequest{value: fee}(requestData);
+        emit RequestMade(requestId, requestData);
+    }
+
+    function nestedParamGraph(address exAggregator) external payable {
         XAPIBuilder.Request memory requestData;
         requestData._initialize(exAggregator, this.xapiCallback.selector);
         // When it is empty, it means that all data sources are used. Multiple data sources can be specified by separating them with commas.

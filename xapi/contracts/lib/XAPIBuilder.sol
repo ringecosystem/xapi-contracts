@@ -38,7 +38,6 @@ library XAPIBuilder {
         BufferChainlink.init(self.buf, defaultBufferSize);
         self.exAggregator = exAggregator;
         self.callbackFunctionId = callbackFunc;
-        self.buf.startMap();
         return self;
     }
 
