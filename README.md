@@ -6,11 +6,11 @@
 
 XAPI: `0xF9105d29A6222fB832C20669A8E4dFD40ECd9f29`
 
-XAPI Consumer Example: `0x7fF1b2BcdEd9088DaF8628500E136fe37a6dd1B3`
+XAPI Consumer Example: `0x6fA47a52f5B708Bf3bac6422f863Ef09d7A78F1b`
 
 ### On Near testnet
 
-Test Aggregator: `aggregator.xapi.testnet`
+Test Aggregator: `aggregator.guantong.testnet`
 
 Test Staking: `staking.xapi.testnet`
 
