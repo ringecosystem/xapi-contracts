@@ -241,8 +241,17 @@ export class Staked {
   account_id: AccountId
 }
 
+export class Eip712Domain {
+  name: string
+  version: string
+  chainId: string
+  verifyingContract: string
+}
+
 // Derivation path prefix for mpc
-const DERIVATION_PATH_PREFIX = "XAPI";
+const PROTOCAL_NAME = "XAPI";
+const PROTOCOL_VERSION = "1";
+
 const DEFAULT_MAX_RESULT_LENGTH = 300;
 
 export abstract class Aggregator extends ContractBase {
@@ -369,6 +378,31 @@ export abstract class Aggregator extends ContractBase {
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
+    const eip712_domain: Eip712Domain = {
+      name: PROTOCAL_NAME,
+      version: PROTOCOL_VERSION,
+      chainId: chain_id,
+      verifyingContract: _latest_config.xapi_address
+    }
+
+    const types = {
+      "AggregatorConfig": [
+        { name: "aggregator", type: "string" },
+        { name: "reportersFee", type: "uint256" },
+        { name: "publishFee", type: "uint256" },
+        { name: "rewardAddress", type: "address" },
+        { name: "version", type: "uint256" },
+      ]
+    }
+
+    const message = {
+       "aggregator": near.currentAccountId(),
+       "reportersFee": BigInt(_latest_config.reporters_fee),
+       "publishFee": BigInt(_latest_config.publish_fee),
+       "rewardAddress": _latest_config.reward_address,
+       "version": _latest_config.version,
+    }
+
     const function_call_data = encodeSetConfigCall({
       functionSignature: "setAggregatorConfig(string,uint256,uint256,address,uint256)",
       params: [
@@ -401,7 +435,7 @@ export abstract class Aggregator extends ContractBase {
       "request": {
         "key_version": mpc_options.key_version || 0,
         "payload": payload_arr,
-        "path": `${DERIVATION_PATH_PREFIX}-${chain_id}`
+        "path": `${PROTOCAL_NAME}-${PROTOCOL_VERSION}-${chain_id}`
       }
     }
     near.log(`before request signature, prepaidGas: ${near.prepaidGas()}, leftGas: ${near.prepaidGas() - near.usedGas()}`)
@@ -690,7 +724,7 @@ export abstract class Aggregator extends ContractBase {
         "key_version": mpc_options.key_version || 0,
         "payload": payload_arr,
         // 0x4dd0A89Cb15D953Fc738362066b412fd303BCe17
-        "path": `${DERIVATION_PATH_PREFIX}-${_response.chain_id}`
+        "path": `${PROTOCAL_NAME}-${PROTOCOL_VERSION}-${_response.chain_id}`
       }
     }
     this.response_lookup.set(request_id, _response);

@@ -7,6 +7,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IXAPI.sol";
 import "./lib/XAPIBuilder.sol";
 
+string constant PROTOCOL_NAME = "XAPI";
+string constant PROTOCOL_VERSION = "1";
+
 contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable {
     uint256 public requestCount;
     mapping(uint256 => Request) public requests;
@@ -23,14 +26,20 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     function initialize(address initialOwner) public initializer {
         __Ownable_init(initialOwner);
         __UUPSUpgradeable_init();
+
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                EIP712DOMAIN_TYPEHASH,
+                keccak256(bytes(PROTOCOL_NAME)),
+                keccak256(bytes(PROTOCOL_VERSION)),
+                block.chainid,
+                // todo update  address(this)
+                address(0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85)
+            )
+        );
     }
 
-    function makeRequest(XAPIBuilder.Request memory requestData)
-        external
-        payable
-        override
-        returns (uint256)
-    {
+    function makeRequest(XAPIBuilder.Request memory requestData) external payable override returns (uint256) {
         require(msg.sender != address(this), "CANT call self");
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[requestData.exAggregator];
         require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
@@ -146,5 +155,52 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
 
     function decodeChainId(uint256 requestId) internal pure returns (uint256) {
         return requestId >> 192;
+    }
+
+    struct EIP712AggregatorConfig {
+        string aggregator;
+        address rewardAddress;
+        uint256 reportersFee;
+        uint256 publishFee;
+        uint256 version;
+    }
+
+    struct EIP712Domain {
+        string name;
+        string version;
+        uint256 chainId;
+        address verifyingContract;
+    }
+
+    bytes32 public DOMAIN_SEPARATOR;
+
+    bytes32 public constant EIP712DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+    bytes32 public constant AGGREGATOR_CONFIG_EIP712_TYPE_HASH = keccak256(
+        "AggregatorConfig(string aggregator,address rewardAddress,uint256 reportersFee,uint256 publishFee,uint256 version)"
+    );
+
+    function verifySignature(EIP712AggregatorConfig memory aggregatorConfig, uint8 v, bytes32 r, bytes32 s)
+        public
+        view
+        returns (bytes32, address)
+    {
+        bytes32 digest =
+            keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashAggregatorConfig(aggregatorConfig)));
+        return (digest, ecrecover(digest, v, r, s));
+    }
+
+    function hashAggregatorConfig(EIP712AggregatorConfig memory aggregatorConfig) public pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                AGGREGATOR_CONFIG_EIP712_TYPE_HASH,
+                keccak256(bytes(aggregatorConfig.aggregator)),
+                aggregatorConfig.rewardAddress,
+                aggregatorConfig.reportersFee,
+                aggregatorConfig.publishFee,
+                aggregatorConfig.version
+            )
+        );
     }
 }
