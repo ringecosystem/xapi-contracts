@@ -1,8 +1,8 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp, Eip712Domain, AggregatorConfigEip712 } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
-import { encodeParameter, stringToBytes } from "./lib/ethereum";
+import { buildAggregatorConfigEip712Payload, encodeParameter, stringToBytes } from "./lib/ethereum";
 
 @NearBindgen({})
 class OrmpAggregator extends Aggregator {
@@ -11,7 +11,7 @@ class OrmpAggregator extends Aggregator {
   constructor() {
     super({
       description: "Test Aggregator",
-      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: "500000000000000000000000" }),
+      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: "500000000000000000000000", key_version: 0 }),
       reporter_required: new ReporterRequired(3, 5),
       staking_contract: "staking.xapi.testnet",
       contract_metadata: new ContractSourceMetadata({
@@ -139,6 +139,25 @@ class OrmpAggregator extends Aggregator {
 
   /// Calls
 
+  // todo remove
+  @call({})
+  test_eip712({ }): Uint8Array {
+    const domain: Eip712Domain = {
+      "name": "XAPI",
+      "version": "1",
+      "chainId": "421614",
+      "verifyingContract": "0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85"
+    };
+    const message: AggregatorConfigEip712 = {
+      "aggregator": "test.aggregator.testnet",
+      "reward_address": "0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85",
+      "reporters_fee": "100",
+      "publish_fee": "200",
+      "version": "1234567",
+    }
+    return buildAggregatorConfigEip712Payload(domain, message)
+  }
+
   @call({})
   publish_external({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): NearPromise {
     return super._publish({ request_id, mpc_options });
@@ -165,13 +184,13 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({})
-  sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId; mpc_options: MpcOptions; }): NearPromise {
-    return super._sync_publish_config_to_remote({ chain_id, mpc_options });
+  sync_publish_config_to_remote({ chain_id }: { chain_id: ChainId;}): NearPromise {
+    return super._sync_publish_config_to_remote({ chain_id });
   }
 
   @call({ privateFunction: true })
-  sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId; mpc_options: MpcOptions; call_data: string; version: string; }): SyncPublishChainConfigData {
-    return super._sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version });
+  sync_publish_config_to_remote_callback({ chain_id, version }: { chain_id: ChainId; version: string; }): SyncPublishChainConfigData {
+    return super._sync_publish_config_to_remote_callback({ chain_id, version });
   }
 
   @call({ payableFunction: true })
