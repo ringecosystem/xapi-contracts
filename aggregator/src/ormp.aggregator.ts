@@ -150,7 +150,6 @@ class OrmpAggregator extends Aggregator {
     };
     const message: AggregatorConfigEip712 = {
       "aggregator": "test.aggregator.testnet",
-      "reward_address": "0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85",
       "reporters_fee": "100",
       "publish_fee": "200",
       "version": "1234567",

@@ -26,15 +26,13 @@ export class PublishChainConfig {
   xapi_address: string;
   reporters_fee: string;
   publish_fee: string;
-  reward_address: string;
   version: string;
 
-  constructor({ chain_id, xapi_address, reporters_fee, publish_fee, reward_address }: { chain_id: ChainId, xapi_address: string, reporters_fee: string, publish_fee: string, reward_address: string }) {
+  constructor({ chain_id, xapi_address, reporters_fee, publish_fee }: { chain_id: ChainId, xapi_address: string, reporters_fee: string, publish_fee: string }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.reporters_fee = reporters_fee;
     this.publish_fee = publish_fee;
-    this.reward_address = reward_address;
     this.version = near.blockTimestamp().toString();
   }
 }
@@ -43,7 +41,6 @@ export class AggregatorConfigEip712 {
   aggregator: string;
   reporters_fee: string;
   publish_fee: string;
-  reward_address: string;
   version: string;
 }
 
@@ -360,7 +357,6 @@ export abstract class Aggregator extends ContractBase {
     assert(publish_chain_config.xapi_address != null && publish_chain_config.xapi_address.length == 42, "xapi_address can't be null and the length should be 42.");
     assert(publish_chain_config.reporters_fee != null && publish_chain_config.reporters_fee.length <= 78, "reporters_fee can't be null and the length should <= 78");
     assert(publish_chain_config.publish_fee != null && publish_chain_config.publish_fee.length <= 78, "publish_fee can't be null and the length should <= 78");
-    assert(publish_chain_config.reward_address != null && publish_chain_config.reward_address.length == 42, "reward_address can't be null and the length should be 42.");
     const _publish_config = new PublishChainConfig({ ...publish_chain_config });
 
     const _required_deposit = this._storage_deposit(publish_chain_config);
@@ -395,7 +391,6 @@ export abstract class Aggregator extends ContractBase {
       "aggregator": near.currentAccountId(),
       "reporters_fee": _latest_config.reporters_fee,
       "publish_fee": _latest_config.publish_fee,
-      "reward_address": _latest_config.reward_address,
       "version": _latest_config.version,
     }
 
@@ -443,7 +438,6 @@ export abstract class Aggregator extends ContractBase {
           aggregator: near.currentAccountId(),
           reporters_fee: _latest_config.reporters_fee,
           publish_fee: _latest_config.publish_fee,
-          reward_address: _latest_config.reward_address,
           version: _latest_config.version
         },
         signature: _result.result,

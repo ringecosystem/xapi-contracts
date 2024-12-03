@@ -30,7 +30,6 @@ struct ResponseData {
 struct AggregatorConfig {
     // Aggregator account on near
     string aggregator;
-    address rewardAddress;
     uint256 reportersFee;
     uint256 publishFee;
     uint256 version;
@@ -53,7 +52,6 @@ interface IXAPI {
         uint256 reportersFee,
         uint256 publishFee,
         string aggregator,
-        address rewardAddress,
         uint256 version
     );
     event AggregatorSuspended(address indexed exAggregator, string indexed aggregator);
@@ -74,7 +72,6 @@ interface IXAPI {
         string memory aggregator,
         uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress,
         uint256 version
     ) external;
 

@@ -296,7 +296,7 @@ export function getDomainSeparator(domain: Eip712Domain) {
 
 export function getAggregatorConfigStructHash(data: AggregatorConfigEip712) {
     const typeHash = hexKeccak256(
-        toUtf8Bytes("AggregatorConfig(string aggregator,address rewardAddress,uint256 reportersFee,uint256 publishFee,uint256 version)")
+        toUtf8Bytes("AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)")
     )
     // 0xac9c0d5b4d00605c29266ffe9da206e8630a373e4204e116506d967ae0ea887d
     near.log(`getAggregatorConfigStructHash typeHash: ${typeHash}`);
@@ -304,7 +304,6 @@ export function getAggregatorConfigStructHash(data: AggregatorConfigEip712) {
     const encodeParams = [
         encodeParameter("bytes32", typeHash),
         encodeParameter("bytes32", hexKeccak256(toUtf8Bytes(data.aggregator))),
-        encodeParameter("address", data.reward_address),
         encodeParameter("uint256", data.reporters_fee),
         encodeParameter("uint256", data.publish_fee),
         encodeParameter("uint256", data.version),

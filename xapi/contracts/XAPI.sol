@@ -42,7 +42,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     function makeRequest(XAPIBuilder.Request memory requestData) external payable override returns (uint256) {
         require(msg.sender != address(this), "CANT call self");
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[requestData.exAggregator];
-        require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
+        require(aggregatorConfig.version != 0, "!Aggregator");
         require(!aggregatorConfig.suspended, "Suspended");
 
         uint256 feeRequired = aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
@@ -79,11 +79,10 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
 
         request.response = response;
 
-        AggregatorConfig memory aggregatorConfig = aggregatorConfigs[msg.sender];
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += request.reportersFee / response.reporters.length;
         }
-        rewards[aggregatorConfig.rewardAddress] += request.publishFee;
+        rewards[msg.sender] += request.publishFee;
 
         (bool success,) =
             request.requester.call(abi.encodeWithSelector(request.requestData.callbackFunctionId, requestId, response));
@@ -121,29 +120,27 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         string memory aggregator,
         uint256 reportersFee,
         uint256 publishFee,
-        address rewardAddress,
         uint256 version
     ) external override {
         aggregatorConfigs[msg.sender] = AggregatorConfig({
             aggregator: aggregator,
             reportersFee: reportersFee,
             publishFee: publishFee,
-            rewardAddress: rewardAddress,
             version: version,
             suspended: false
         });
 
-        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, rewardAddress, version);
+        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, version);
     }
 
     function fee(address exAggregator) external view override returns (uint256) {
         AggregatorConfig memory aggregatorConfig = aggregatorConfigs[exAggregator];
-        require(aggregatorConfig.rewardAddress != address(0), "!Aggregator");
+        require(aggregatorConfig.version != 0, "!Aggregator");
         return aggregatorConfig.reportersFee + aggregatorConfig.publishFee;
     }
 
     function suspendAggregator(address exAggregator) external override onlyOwner {
-        require(aggregatorConfigs[exAggregator].rewardAddress != address(0), "!Aggregator");
+        require(aggregatorConfigs[exAggregator].version != 0, "!Aggregator");
         aggregatorConfigs[exAggregator].suspended = true;
 
         emit AggregatorSuspended(exAggregator, aggregatorConfigs[exAggregator].aggregator);
@@ -159,7 +156,6 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
 
     struct EIP712AggregatorConfig {
         string aggregator;
-        address rewardAddress;
         uint256 reportersFee;
         uint256 publishFee;
         uint256 version;
@@ -178,7 +174,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     bytes32 public constant AGGREGATOR_CONFIG_EIP712_TYPE_HASH = keccak256(
-        "AggregatorConfig(string aggregator,address rewardAddress,uint256 reportersFee,uint256 publishFee,uint256 version)"
+        "AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)"
     );
 
     function verifySignature(EIP712AggregatorConfig memory aggregatorConfig, uint8 v, bytes32 r, bytes32 s)
@@ -196,7 +192,6 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
             abi.encode(
                 AGGREGATOR_CONFIG_EIP712_TYPE_HASH,
                 keccak256(bytes(aggregatorConfig.aggregator)),
-                aggregatorConfig.rewardAddress,
                 aggregatorConfig.reportersFee,
                 aggregatorConfig.publishFee,
                 aggregatorConfig.version
