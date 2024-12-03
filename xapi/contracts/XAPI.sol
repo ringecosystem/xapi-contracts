@@ -92,7 +92,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         emit Fulfilled(requestId, request.response, request.status);
     }
 
-    function retryFulfill(uint256 requestId) external override {
+    function retryCallback(uint256 requestId) external override {
         Request storage request = requests[requestId];
         require(request.status == RequestStatus.CallbackFailed, "!Callback failed request");
         require(msg.sender == request.requester, "!Requester");

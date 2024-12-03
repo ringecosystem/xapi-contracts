@@ -63,7 +63,7 @@ interface IXAPI {
 
     function fulfill(uint256 requestId, ResponseData memory response) external;
 
-    function retryFulfill(uint256 requestId) external;
+    function retryCallback(uint256 requestId) external;
 
     function withdrawRewards() external;
 
