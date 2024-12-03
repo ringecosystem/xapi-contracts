@@ -167,7 +167,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     bytes32 public constant AGGREGATOR_CONFIG_EIP712_TYPE_HASH =
-        keccak256("AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)");
+        keccak256("EIP712AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)");
 
     function verifyAggregatorConfigSignature(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature)
         public
@@ -188,6 +188,31 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
                 aggregatorConfig.reportersFee,
                 aggregatorConfig.publishFee,
                 aggregatorConfig.version
+            )
+        );
+    }
+
+    bytes32 public constant RESPONSE_EIP712_TYPE_HASH =
+        keccak256("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode)");
+
+    function verifyResponseSignature(EIP712Response memory response, bytes memory signature)
+        public
+        view
+        returns (bytes32, address)
+    {
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashResponse(response)));
+        (uint8 v, bytes32 r, bytes32 s) = _splitSignature(signature);
+        return (digest, ecrecover(digest, v, r, s));
+    }
+
+    function hashResponse(EIP712Response memory response) public pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                RESPONSE_EIP712_TYPE_HASH,
+                response.requestId,
+                response.reporters,
+                keccak256(response.result),
+                response.errorCode
             )
         );
     }

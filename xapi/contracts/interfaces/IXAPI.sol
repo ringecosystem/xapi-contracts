@@ -27,6 +27,14 @@ struct ResponseData {
     uint16 errorCode;
 }
 
+struct EIP712Response {
+    uint256 requestId;
+    address[] reporters;
+    bytes result;
+    // 0 if no error
+    uint16 errorCode;
+}
+
 struct AggregatorConfig {
     // Aggregator account on near
     string aggregator;

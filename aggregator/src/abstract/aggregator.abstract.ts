@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "../../../common/src/standard.abstract";
-import { encodePublishCall, ethereumTransaction, hexToBytes, buildEip712AggregatorConfigPayload } from "../lib/ethereum";
+import { encodePublishCall, ethereumTransaction, hexToBytes, buildEIP712AggregatorConfigPayload, buildEIP712ResponsePayload } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
 import { concatSignature, sizeOf } from "../lib/helper";
 
@@ -37,7 +37,7 @@ export class PublishChainConfig {
   }
 }
 
-export class Eip712AggregatorConfig {
+export class EIP712AggregatorConfig {
   aggregator: string;
   reportersFee: string;
   publishFee: string;
@@ -115,20 +115,14 @@ class ReportEvent extends Nep297Event {
 }
 
 export class PublishData {
-  request_id: RequestId;
-  response: Response;
-  call_data: string;
-  publish_chain_config: PublishChainConfig;
+  eip712_response: EIP712Response;
+  eip712_domain: EIP712Domain;
   signature: string;
-  mpc_options: MpcOptions;
 
-  constructor({ request_id, response, call_data, publish_chain_config, signature, mpc_options }: { request_id: RequestId, response: Response, call_data: string, publish_chain_config: PublishChainConfig, signature: string, mpc_options: MpcOptions }) {
-    this.request_id = request_id;
-    this.response = response;
-    this.call_data = call_data;
-    this.publish_chain_config = publish_chain_config;
+  constructor({ eip712_response, eip712_domain, signature }: { eip712_response: EIP712Response, eip712_domain: EIP712Domain, signature: string }) {
+    this.eip712_response = eip712_response;
+    this.eip712_domain = eip712_domain;
     this.signature = signature;
-    this.mpc_options = mpc_options;
   }
 }
 
@@ -151,16 +145,12 @@ class SetPublishChainConfigEvent extends Nep297Event {
 }
 
 export class SyncPublishChainConfigData {
-  chain_id: ChainId;
-  xapi_address: string;
-  aggregator_config: Eip712AggregatorConfig;
-  domain: Eip712Domain;
+  eip712_aggregator_config: EIP712AggregatorConfig;
+  eip712_domain: EIP712Domain;
   signature: string;
-  constructor({ chain_id, xapi_address, aggregator_config, domain, signature }: { chain_id: ChainId, xapi_address: string, aggregator_config: Eip712AggregatorConfig, domain: Eip712Domain, signature: string }) {
-    this.chain_id = chain_id;
-    this.xapi_address = xapi_address;
-    this.aggregator_config = aggregator_config;
-    this.domain = domain;
+  constructor({ eip712_aggregator_config, eip712_domain, signature }: { eip712_aggregator_config: EIP712AggregatorConfig, eip712_domain: EIP712Domain, signature: string }) {
+    this.eip712_aggregator_config = eip712_aggregator_config;
+    this.eip712_domain = eip712_domain;
     this.signature = signature;
   }
 }
@@ -202,6 +192,16 @@ export class Response {
     this.status = RequestStatus[RequestStatus.FETCHING];
     this.error_code = 0;
   }
+}
+
+export class EIP712Response {
+  requestId: RequestId;
+  // EVM address to distribute rewards
+  reporters: string[];
+  // !!! Encode it to bytes in _aggregate
+  result: string;
+  // Leave it 0 if there's no error. MAX: 65535(uint16)
+  errorCode: number;
 }
 
 export class Report {
@@ -247,7 +247,7 @@ export class Staked {
   account_id: AccountId
 }
 
-export class Eip712Domain {
+export class EIP712Domain {
   name: string
   version: string
   chainId: string
@@ -382,21 +382,21 @@ export abstract class Aggregator extends ContractBase {
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
-    const eip712_domain: Eip712Domain = {
+    const eip712_domain: EIP712Domain = {
       name: PROTOCAL_NAME,
       version: PROTOCOL_VERSION,
       chainId: chain_id,
       verifyingContract: _latest_config.xapi_address
     }
 
-    const eip712_aggregator_config: Eip712AggregatorConfig = {
+    const eip712_aggregator_config: EIP712AggregatorConfig = {
       "aggregator": near.currentAccountId(),
       "reportersFee": _latest_config.reporters_fee,
       "publishFee": _latest_config.publish_fee,
       "version": _latest_config.version,
     }
 
-    const payload = buildEip712AggregatorConfigPayload(eip712_domain, eip712_aggregator_config);
+    const payload = buildEIP712AggregatorConfigPayload(eip712_domain, eip712_aggregator_config);
     const payload_arr = Array.from(payload);
     // near.log("payload_arr", payload_arr);
 
@@ -438,21 +438,19 @@ export abstract class Aggregator extends ContractBase {
       const _signature = concatSignature(_signature_json.big_r.affine_point, _signature_json.s.scalar, _signature_json.recovery_id);
 
       const sync_data = new SyncPublishChainConfigData({
-        chain_id,
-        aggregator_config: {
+        eip712_aggregator_config: {
           aggregator: near.currentAccountId(),
           reportersFee: _latest_config.reporters_fee,
           publishFee: _latest_config.publish_fee,
           version: _latest_config.version
         },
-        domain: {
+        eip712_domain: {
           name: PROTOCAL_NAME,
           version: PROTOCOL_VERSION,
           chainId: chain_id,
           verifyingContract: _latest_config.xapi_address
         },
         signature: _signature,
-        xapi_address: _latest_config.xapi_address
       });
       new SyncPublishChainConfigEvent(sync_data).emit();
       return sync_data;
@@ -658,9 +656,8 @@ export abstract class Aggregator extends ContractBase {
     }
   }
 
-  abstract publish_external({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise;
-  _publish({ request_id, mpc_options }: { request_id: RequestId, mpc_options: MpcOptions }): NearPromise {
-    this._check_mpc_options(mpc_options);
+  abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
+  _publish({ request_id }: { request_id: RequestId }): NearPromise {
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
@@ -669,36 +666,22 @@ export abstract class Aggregator extends ContractBase {
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
 
-    // Relay it https://sepolia.etherscan.io/tx/0xfe2e2e0018f609b5d10250a823f191942fc42d597ad1cccfb4842f43f1d9196e
-    const function_call_data = encodePublishCall({
-      functionSignature: "fulfill(uint256,(address[],bytes,uint16))",
-      params: [
-        BigInt(request_id),
-        [
-          _response.reporter_reward_addresses,
-          _response.result,
-          _response.error_code || 0
-        ]
-      ]
-    })
-    // near.log("functionCallData", function_call_data);
+    const eip712_domain: EIP712Domain = {
+      name: PROTOCAL_NAME,
+      version: PROTOCOL_VERSION,
+      chainId: _chain_config.chain_id,
+      verifyingContract: _chain_config.xapi_address
+    }
 
-    const function_call_data_bytes = hexToBytes(function_call_data);
+    const eip712_response: EIP712Response = {
+      "requestId": request_id,
+      "reporters": _response.reporter_reward_addresses,
+      "result": _response.result,
+      "errorCode": _response.error_code,
+    }
 
-    const payload = ethereumTransaction({
-      chainId: BigInt(_response.chain_id),
-      nonce: BigInt(mpc_options.nonce),
-      maxPriorityFeePerGas: BigInt(mpc_options.max_priority_fee_per_gas),
-      maxFeePerGas: BigInt(mpc_options.max_fee_per_gas),
-      gasLimit: BigInt(mpc_options.gas_limit),
-      to: _chain_config.xapi_address,
-      value: BigInt(0),
-      data: function_call_data_bytes,
-      accessList: []
-    });
+    const payload = buildEIP712ResponsePayload(eip712_domain, eip712_response);
     const payload_arr = Array.from(payload);
-    // near.log("payload_arr", payload_arr);
-    // 215,91,147,81,5,211,171,61,184,185,105,11,93,160,46,31,46,184,4,159,21,167,69,34,35,91,31,56,138,152,163,51
 
     const mpc_args = {
       "request": {
@@ -717,7 +700,7 @@ export abstract class Aggregator extends ContractBase {
         NearPromise.new(near.currentAccountId())
           .functionCall(
             "publish_callback",
-            JSON.stringify({ request_id, mpc_options, call_data: function_call_data }),
+            JSON.stringify({ request_id }),
             BigInt(0),
             // Beware of the 300T cap with mpc gas
             BigInt(near.prepaidGas() - near.usedGas() - ONE_TERA_GAS * BigInt(255))
@@ -726,30 +709,34 @@ export abstract class Aggregator extends ContractBase {
     return promise.asReturn();
   }
 
-  abstract publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): PublishData
-  _publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId, mpc_options: MpcOptions, call_data: string }): PublishData {
+  abstract publish_callback({ request_id }: { request_id: RequestId }): PublishData
+  _publish_callback({ request_id }: { request_id: RequestId }): PublishData {
     const _result = this._promise_result({ promise_index: 0 });
     near.log(`publish_callback ${request_id}, ${_result.success}, ${_result.result}`);
     const _response = this.response_lookup.get(request_id);
+    const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
+
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
-      const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
       const _publish_data = new PublishData({
-        request_id, response: _response, publish_chain_config: _chain_config, signature: _result.result,
-        mpc_options, call_data
+        eip712_response: {
+          requestId: request_id,
+          reporters: _response.reporter_reward_addresses,
+          result: _response.result,
+          errorCode: _response.error_code
+        },
+        eip712_domain: {
+          name: PROTOCAL_NAME,
+          version: PROTOCOL_VERSION,
+          chainId: _chain_config.chain_id,
+          verifyingContract: _chain_config.xapi_address
+        },
+        signature: _result.result,
       })
       new PublishEvent(_publish_data).emit();
       this.response_lookup.set(request_id, _response);
       return _publish_data;
     }
-  }
-
-  // todo remove
-  private _check_mpc_options(mpc_options: MpcOptions): void {
-    assert(mpc_options.nonce != null, "nonce can't be null.");
-    assert(mpc_options.gas_limit != null, "gas_limit can't be null.");
-    assert(mpc_options.max_fee_per_gas != null, "max_fee_per_gas can't be null.");
-    assert(mpc_options.max_priority_fee_per_gas != null, "max_priority_fee_per_gas can't be null.");
   }
 
   abstract estimate_storage_deposit(obj: any): bigint;
