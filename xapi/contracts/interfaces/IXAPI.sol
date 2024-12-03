@@ -76,15 +76,14 @@ interface IXAPI {
 
     function makeRequest(XAPIBuilder.Request memory requestData) external payable returns (uint256);
 
-    function fulfill(uint256 requestId, ResponseData memory response) external;
+    function fulfill(EIP712Response memory response, bytes memory signature) external;
 
     function retryCallback(uint256 requestId) external;
 
     function withdrawRewards() external;
 
     // Should be called by Aggregator mpc
-    function setAggregatorConfig(string memory aggregator, uint256 reportersFee, uint256 publishFee, uint256 version)
-        external;
+    function setAggregatorConfig(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature) external;
 
     function fee(address exAggregator) external view returns (uint256);
 
@@ -93,5 +92,10 @@ interface IXAPI {
     function verifyAggregatorConfigSignature(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature)
         external
         view
-        returns (bytes32, address);
+        returns (address, bytes32);
+
+    function verifyResponseSignature(EIP712Response memory response, bytes memory signature)
+        external
+        view
+        returns (address, bytes32);
 }

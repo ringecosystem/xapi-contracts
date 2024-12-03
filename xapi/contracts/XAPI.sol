@@ -79,26 +79,30 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         return requestId;
     }
 
-    function fulfill(uint256 requestId, ResponseData memory response) external override {
-        Request storage request = requests[requestId];
-        require(_decodeChainId(requestId) == block.chainid, "!chainId");
+    function fulfill(EIP712Response memory response, bytes memory signature) external override {
+        Request storage request = requests[response.requestId];
+        require(_decodeChainId(response.requestId) == block.chainid, "!chainId");
         require(request.requestData.exAggregator != address(0), "!Request");
-        require(msg.sender == request.requestData.exAggregator, "!exAggregator address");
+        (address _exAggregator,) = verifyResponseSignature(response, signature);
+        require(_exAggregator == request.requestData.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
 
-        request.response = response;
+        ResponseData memory _responseData =
+            ResponseData({reporters: response.reporters, result: response.result, errorCode: response.errorCode});
+        request.response = _responseData;
 
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += request.reportersFee / response.reporters.length;
         }
         rewards[msg.sender] += request.publishFee;
 
-        (bool success,) =
-            request.requester.call(abi.encodeWithSelector(request.requestData.callbackFunctionId, requestId, response));
+        (bool success,) = request.requester.call(
+            abi.encodeWithSelector(request.requestData.callbackFunctionId, response.requestId, response)
+        );
 
         request.status = success ? RequestStatus.Fulfilled : RequestStatus.CallbackFailed;
 
-        emit Fulfilled(requestId, request.response, request.status);
+        emit Fulfilled(response.requestId, request.response, request.status);
     }
 
     function retryCallback(uint256 requestId) external override {
@@ -125,19 +129,26 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         payable(msg.sender).transfer(amount);
     }
 
-    function setAggregatorConfig(string memory aggregator, uint256 reportersFee, uint256 publishFee, uint256 version)
+    function setAggregatorConfig(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature)
         external
         override
     {
-        aggregatorConfigs[msg.sender] = AggregatorConfig({
-            aggregator: aggregator,
-            reportersFee: reportersFee,
-            publishFee: publishFee,
-            version: version,
+        (address exAggregator,) = verifyAggregatorConfigSignature(aggregatorConfig, signature);
+        aggregatorConfigs[exAggregator] = AggregatorConfig({
+            aggregator: aggregatorConfig.aggregator,
+            reportersFee: aggregatorConfig.reportersFee,
+            publishFee: aggregatorConfig.publishFee,
+            version: aggregatorConfig.version,
             suspended: false
         });
 
-        emit AggregatorConfigSet(msg.sender, reportersFee, publishFee, aggregator, version);
+        emit AggregatorConfigSet(
+            exAggregator,
+            aggregatorConfig.reportersFee,
+            aggregatorConfig.publishFee,
+            aggregatorConfig.aggregator,
+            aggregatorConfig.version
+        );
     }
 
     function fee(address exAggregator) external view override returns (uint256) {
@@ -172,12 +183,13 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     function verifyAggregatorConfigSignature(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature)
         public
         view
-        returns (bytes32, address)
+        override
+        returns (address, bytes32)
     {
         bytes32 digest =
             keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashAggregatorConfig(aggregatorConfig)));
         (uint8 v, bytes32 r, bytes32 s) = _splitSignature(signature);
-        return (digest, ecrecover(digest, v, r, s));
+        return (ecrecover(digest, v, r, s), digest);
     }
 
     function hashAggregatorConfig(EIP712AggregatorConfig memory aggregatorConfig) public pure returns (bytes32) {
@@ -198,11 +210,12 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     function verifyResponseSignature(EIP712Response memory response, bytes memory signature)
         public
         view
-        returns (bytes32, address)
+        override
+        returns (address, bytes32)
     {
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashResponse(response)));
         (uint8 v, bytes32 r, bytes32 s) = _splitSignature(signature);
-        return (digest, ecrecover(digest, v, r, s));
+        return (ecrecover(digest, v, r, s), digest);
     }
 
     function hashResponse(EIP712Response memory response) public pure returns (bytes32) {
