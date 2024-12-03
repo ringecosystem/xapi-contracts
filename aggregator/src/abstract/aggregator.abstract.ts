@@ -1,7 +1,7 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "../../../common/src/standard.abstract";
-import { encodePublishCall, ethereumTransaction, hexToBytes, buildAggregatorConfigEip712Payload } from "../lib/ethereum";
+import { encodePublishCall, ethereumTransaction, hexToBytes, buildEip712AggregatorConfigPayload } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
-import { sizeOf } from "../lib/helper";
+import { concatSignature, sizeOf } from "../lib/helper";
 
 export type RequestId = string;
 export type Timestamp = string;
@@ -37,10 +37,10 @@ export class PublishChainConfig {
   }
 }
 
-export class AggregatorConfigEip712 {
+export class Eip712AggregatorConfig {
   aggregator: string;
-  reporters_fee: string;
-  publish_fee: string;
+  reportersFee: string;
+  publishFee: string;
   version: string;
 }
 
@@ -153,12 +153,14 @@ class SetPublishChainConfigEvent extends Nep297Event {
 export class SyncPublishChainConfigData {
   chain_id: ChainId;
   xapi_address: string;
-  aggregator_config: AggregatorConfigEip712;
+  aggregator_config: Eip712AggregatorConfig;
+  domain: Eip712Domain;
   signature: string;
-  constructor({ chain_id, xapi_address, aggregator_config, signature }: { chain_id: ChainId, xapi_address: string, aggregator_config: AggregatorConfigEip712, signature: string }) {
+  constructor({ chain_id, xapi_address, aggregator_config, domain, signature }: { chain_id: ChainId, xapi_address: string, aggregator_config: Eip712AggregatorConfig, domain: Eip712Domain, signature: string }) {
     this.chain_id = chain_id;
     this.xapi_address = xapi_address;
     this.aggregator_config = aggregator_config;
+    this.domain = domain;
     this.signature = signature;
   }
 }
@@ -387,14 +389,14 @@ export abstract class Aggregator extends ContractBase {
       verifyingContract: _latest_config.xapi_address
     }
 
-    const aggregator_config_eip712: AggregatorConfigEip712 = {
+    const eip712_aggregator_config: Eip712AggregatorConfig = {
       "aggregator": near.currentAccountId(),
-      "reporters_fee": _latest_config.reporters_fee,
-      "publish_fee": _latest_config.publish_fee,
+      "reportersFee": _latest_config.reporters_fee,
+      "publishFee": _latest_config.publish_fee,
       "version": _latest_config.version,
     }
 
-    const payload = buildAggregatorConfigEip712Payload(eip712_domain, aggregator_config_eip712);
+    const payload = buildEip712AggregatorConfigPayload(eip712_domain, eip712_aggregator_config);
     const payload_arr = Array.from(payload);
     // near.log("payload_arr", payload_arr);
 
@@ -432,15 +434,24 @@ export abstract class Aggregator extends ContractBase {
         near.log(`Config is out of date, latest: ${_latest_config.version}, want to sync: ${version}`)
         return;
       }
+      const _signature_json = JSON.parse(_result.result);
+      const _signature = concatSignature(_signature_json.big_r.affine_point, _signature_json.s.scalar, _signature_json.recovery_id);
+
       const sync_data = new SyncPublishChainConfigData({
         chain_id,
         aggregator_config: {
           aggregator: near.currentAccountId(),
-          reporters_fee: _latest_config.reporters_fee,
-          publish_fee: _latest_config.publish_fee,
+          reportersFee: _latest_config.reporters_fee,
+          publishFee: _latest_config.publish_fee,
           version: _latest_config.version
         },
-        signature: _result.result,
+        domain: {
+          name: PROTOCAL_NAME,
+          version: PROTOCOL_VERSION,
+          chainId: chain_id,
+          verifyingContract: _latest_config.xapi_address
+        },
+        signature: _signature,
         xapi_address: _latest_config.xapi_address
       });
       new SyncPublishChainConfigEvent(sync_data).emit();

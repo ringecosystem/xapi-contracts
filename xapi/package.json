@@ -10,7 +10,7 @@
     "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network arbitrumSepolia",
     "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network arbitrumSepolia",
     "console": "npx hardhat console --network arbitrumSepolia",
-    "verify": "npx hardhat verify --network arbitrumSepolia 0xA492a5C467A9aB73646eBf4fD2662aA7829aAdD4",
+    "verify": "npx hardhat verify --network arbitrumSepolia 0xAEA071B8252B6Dcaa1B33D0624599DaEFF8f1bf3",
     "test": "npx hardhat test"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 import { near } from "near-sdk-js";
 import { encodeRlp, BytesLike, RlpStructuredDataish, getBytes } from "./rlp";
-import { AggregatorConfigEip712, Eip712Domain, PublishChainConfig } from "../abstract/aggregator.abstract";
+import { Eip712AggregatorConfig, Eip712Domain } from "../abstract/aggregator.abstract";
 
 type Address = BytesLike;
 type AccessList = Array<[Address, Array<BytesLike>]>;
@@ -204,7 +204,7 @@ export function hexKeccak256(value: Uint8Array): string {
 }
 
 export function concatHex(hexStr: string[]): string {
-    return "0x"+hexStr.map(v=>v.substring(2)).join("");
+    return "0x" + hexStr.map(v => v.substring(2)).join("");
 }
 
 /**
@@ -294,7 +294,7 @@ export function getDomainSeparator(domain: Eip712Domain) {
 // Digest: 0x447924def85c3e6edab7627a7a0e483b6471f302f2bc0eb988a9fc7b1730bd9d
 // To sign Message: 68,121,36,222,248,92,62,110,218,183,98,122,122,14,72,59,100,113,243,2,242,188,14,185,136,169,252,123,23,48,189,157
 
-export function getAggregatorConfigStructHash(data: AggregatorConfigEip712) {
+export function getAggregatorConfigStructHash(data: Eip712AggregatorConfig) {
     const typeHash = hexKeccak256(
         toUtf8Bytes("AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)")
     )
@@ -304,8 +304,8 @@ export function getAggregatorConfigStructHash(data: AggregatorConfigEip712) {
     const encodeParams = [
         encodeParameter("bytes32", typeHash),
         encodeParameter("bytes32", hexKeccak256(toUtf8Bytes(data.aggregator))),
-        encodeParameter("uint256", data.reporters_fee),
-        encodeParameter("uint256", data.publish_fee),
+        encodeParameter("uint256", data.reportersFee),
+        encodeParameter("uint256", data.publishFee),
         encodeParameter("uint256", data.version),
     ].join('');
     const structHash = hexKeccak256(getBytes(`0x${encodeParams}`));
@@ -313,7 +313,7 @@ export function getAggregatorConfigStructHash(data: AggregatorConfigEip712) {
     return structHash;
 }
 
-export function buildAggregatorConfigEip712Payload(domain: Eip712Domain, data: AggregatorConfigEip712) {
+export function buildEip712AggregatorConfigPayload(domain: Eip712Domain, data: Eip712AggregatorConfig) {
     const domainSeparator = getDomainSeparator(domain);
     const sturctHash = getAggregatorConfigStructHash(data);
     const digest = hexKeccak256(

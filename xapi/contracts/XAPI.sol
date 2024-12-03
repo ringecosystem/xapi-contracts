@@ -21,6 +21,16 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
+        // todo remove this if use proxy
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                EIP712DOMAIN_TYPEHASH,
+                keccak256(bytes(PROTOCOL_NAME)),
+                keccak256(bytes(PROTOCOL_VERSION)),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     function initialize(address initialOwner) public initializer {
@@ -33,8 +43,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
                 keccak256(bytes(PROTOCOL_NAME)),
                 keccak256(bytes(PROTOCOL_VERSION)),
                 block.chainid,
-                // todo update  address(this)
-                address(0x9F33a4809aA708d7a399fedBa514e0A0d15EfA85)
+                address(this)
             )
         );
     }
@@ -49,7 +58,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         require(msg.value == feeRequired, "!value");
 
         requestCount++;
-        uint256 requestId = encodeRequestId(requestCount);
+        uint256 requestId = _encodeRequestId(requestCount);
         requests[requestId] = Request({
             requester: msg.sender,
             status: RequestStatus.Pending,
@@ -72,7 +81,7 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
 
     function fulfill(uint256 requestId, ResponseData memory response) external override {
         Request storage request = requests[requestId];
-        require(decodeChainId(requestId) == block.chainid, "!chainId");
+        require(_decodeChainId(requestId) == block.chainid, "!chainId");
         require(request.requestData.exAggregator != address(0), "!Request");
         require(msg.sender == request.requestData.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
@@ -116,12 +125,10 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         payable(msg.sender).transfer(amount);
     }
 
-    function setAggregatorConfig(
-        string memory aggregator,
-        uint256 reportersFee,
-        uint256 publishFee,
-        uint256 version
-    ) external override {
+    function setAggregatorConfig(string memory aggregator, uint256 reportersFee, uint256 publishFee, uint256 version)
+        external
+        override
+    {
         aggregatorConfigs[msg.sender] = AggregatorConfig({
             aggregator: aggregator,
             reportersFee: reportersFee,
@@ -146,26 +153,12 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
         emit AggregatorSuspended(exAggregator, aggregatorConfigs[exAggregator].aggregator);
     }
 
-    function encodeRequestId(uint256 count) internal view returns (uint256) {
+    function _encodeRequestId(uint256 count) internal view returns (uint256) {
         return (block.chainid << 192) | count;
     }
 
-    function decodeChainId(uint256 requestId) internal pure returns (uint256) {
+    function _decodeChainId(uint256 requestId) internal pure returns (uint256) {
         return requestId >> 192;
-    }
-
-    struct EIP712AggregatorConfig {
-        string aggregator;
-        uint256 reportersFee;
-        uint256 publishFee;
-        uint256 version;
-    }
-
-    struct EIP712Domain {
-        string name;
-        string version;
-        uint256 chainId;
-        address verifyingContract;
     }
 
     bytes32 public DOMAIN_SEPARATOR;
@@ -173,17 +166,17 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
     bytes32 public constant EIP712DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
-    bytes32 public constant AGGREGATOR_CONFIG_EIP712_TYPE_HASH = keccak256(
-        "AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)"
-    );
+    bytes32 public constant AGGREGATOR_CONFIG_EIP712_TYPE_HASH =
+        keccak256("AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)");
 
-    function verifySignature(EIP712AggregatorConfig memory aggregatorConfig, uint8 v, bytes32 r, bytes32 s)
+    function verifyAggregatorConfigSignature(EIP712AggregatorConfig memory aggregatorConfig, bytes memory signature)
         public
         view
         returns (bytes32, address)
     {
         bytes32 digest =
             keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashAggregatorConfig(aggregatorConfig)));
+        (uint8 v, bytes32 r, bytes32 s) = _splitSignature(signature);
         return (digest, ecrecover(digest, v, r, s));
     }
 
@@ -197,5 +190,15 @@ contract XAPI is Initializable, IXAPI, Ownable2StepUpgradeable, UUPSUpgradeable 
                 aggregatorConfig.version
             )
         );
+    }
+
+    function _splitSignature(bytes memory signature) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+        require(signature.length == 65, "Invalid signature length");
+
+        assembly {
+            r := mload(add(signature, 0x20))
+            s := mload(add(signature, 0x40))
+            v := byte(0, mload(add(signature, 0x60)))
+        }
     }
 }
