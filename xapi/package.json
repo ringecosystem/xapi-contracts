@@ -6,11 +6,11 @@
   "scripts": {
     "build": "npx hardhat compile",
     "clear": "npx hardhat clean",
-    "proxy-upgrade": "npx hardhat run scripts/XAPI.upgrade.js  --network arbitrumSepolia",
-    "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network arbitrumSepolia",
-    "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network arbitrumSepolia",
-    "console": "npx hardhat console --network arbitrumSepolia",
-    "verify": "npx hardhat verify --network arbitrumSepolia 0xAEA071B8252B6Dcaa1B33D0624599DaEFF8f1bf3",
+    "proxy-upgrade": "npx hardhat run scripts/XAPI.upgrade.js  --network sepolia",
+    "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network sepolia",
+    "deploy": "rm -rf ./ignition/deployments && npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
+    "console": "npx hardhat console --network sepolia",
+    "verify": "npx hardhat verify --network sepolia 0x954D3F9bcaEC245150B6DBfAd6A63806EBa13eCc",
     "test": "npx hardhat test"
   },
   "devDependencies": {

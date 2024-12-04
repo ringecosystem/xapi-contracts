@@ -716,6 +716,9 @@ export abstract class Aggregator extends ContractBase {
     const _response = this.response_lookup.get(request_id);
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
 
+    const _signature_json = JSON.parse(_result.result);
+    const _signature = concatSignature(_signature_json.big_r.affine_point, _signature_json.s.scalar, _signature_json.recovery_id);
+
     if (_result.success) {
       _response.status = RequestStatus[RequestStatus.PUBLISHED];
       const _publish_data = new PublishData({
@@ -731,7 +734,7 @@ export abstract class Aggregator extends ContractBase {
           chainId: _chain_config.chain_id,
           verifyingContract: _chain_config.xapi_address
         },
-        signature: _result.result,
+        signature: _signature,
       })
       new PublishEvent(_publish_data).emit();
       this.response_lookup.set(request_id, _response);

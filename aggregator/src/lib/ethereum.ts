@@ -113,12 +113,7 @@ export function encodeParameter(type: string, value: any) {
         return value.slice(2).padStart(64, '0');
     } else if (type === 'address') {
         return value.toLowerCase().slice(2).padStart(64, '0');
-    } else if (type === 'address[]') {
-        const addressesEncoded = value.map(addr =>
-            padLeft(addr.replace('0x', ''), 40)
-        ).join('');
-        return padLeft((value.length).toString(16), 64) + addressesEncoded;
-    } else if (type === 'bytes') {
+    }  else if (type === 'bytes') {
         const encodedValue = toHexString(value).slice(2);
         // near.log(`encode bytes: ${encodedValue}, value: ${value}`)
         const lengthHex = (encodedValue.length / 2).toString(16);
@@ -202,10 +197,6 @@ export function stringToBytes(str: string): string {
     }
     // near.log(`bytes: ${bytes}, string: ${str}`);
     return '0x' + bytes.map(byte => ('0' + byte.toString(16)).slice(-2)).join('');
-}
-
-export function padLeft(str: string, length: number) {
-    return str.padStart(length, '0');
 }
 
 //========================= eip712
@@ -314,13 +305,20 @@ export function getResponseStructHash(data: EIP712Response) {
     )
     near.log(`getResponseStructHash typeHash: ${typeHash}`);
 
+    const offsetAddresses = (160).toString(16).padStart(64, '0');
+    const addresses = data.reporters.map((addr: string) => encodeParameter('address', addr)).join('');
+    const addressesLength = (data.reporters.length).toString(16).padStart(64, '0');
+    const addressesData = addressesLength + addresses;
+
     const encodeParams = [
         encodeParameter("bytes32", typeHash),
         encodeParameter("uint256", data.requestId),
-        encodeParameter("address[]", encodeParameter("address[]", data.reporters)),
+        offsetAddresses,
         encodeParameter("bytes32", hexKeccak256(getBytes(data.result))),
-        encodeParameter("uint16", data.errorCode),
+        encodeParameter("uint256", data.errorCode),
+        addressesData
     ].join('');
+    near.log(`encode RESPONSE: ${encodeParams}, result: ${hexKeccak256(getBytes(data.result))}`);
     const structHash = hexKeccak256(getBytes(`0x${encodeParams}`));
     near.log(`getResponseStructHash structHash: ${structHash}`);
     return structHash;
