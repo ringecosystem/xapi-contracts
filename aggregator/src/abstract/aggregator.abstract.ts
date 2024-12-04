@@ -1,5 +1,5 @@
 import { ContractBase, Nep297Event, ContractSourceMetadata } from "../../../common/src/standard.abstract";
-import { encodePublishCall, ethereumTransaction, hexToBytes, buildEIP712AggregatorConfigPayload, buildEIP712ResponsePayload } from "../lib/ethereum";
+import { buildEIP712AggregatorConfigPayload, buildEIP712ResponsePayload } from "../lib/ethereum";
 import { AccountId, assert, LookupMap, near, NearPromise, ONE_TERA_GAS, PromiseIndex, UnorderedMap } from "near-sdk-js";
 import { concatSignature, sizeOf } from "../lib/helper";
 
@@ -231,15 +231,6 @@ export class MpcConfig {
     this.attached_balance = attached_balance;
     this.key_version = key_version;
   }
-}
-
-// todo remove this
-export class MpcOptions {
-  nonce: string
-  gas_limit: string
-  max_fee_per_gas: string
-  max_priority_fee_per_gas: string
-  key_version: number
 }
 
 export class Staked {
