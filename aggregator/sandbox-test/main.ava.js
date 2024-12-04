@@ -98,3 +98,9 @@ test('encodeSyncConfigCall', async (t)=>{
   const { contract, root } = t.context.accounts;
   await contract.call(contract, 'test_sync_config_encode', {});
 })
+
+
+test('testEip712', async (t)=>{
+  const { contract, root } = t.context.accounts;
+  await contract.call(contract, 'test_eip712', {});
+})

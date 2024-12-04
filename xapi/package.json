@@ -8,9 +8,9 @@
     "clear": "npx hardhat clean",
     "proxy-upgrade": "npx hardhat run scripts/XAPI.upgrade.js  --network sepolia",
     "proxy-deploy": "npx hardhat run scripts/XAPI.deploy.js  --network sepolia",
-    "deploy": "npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
+    "deploy": "rm -rf ./ignition/deployments && npx hardhat ignition deploy ./ignition/modules/XAPI.deploy.js --network sepolia",
     "console": "npx hardhat console --network sepolia",
-    "verify": "npx hardhat verify --network sepolia 0xF9105d29A6222fB832C20669A8E4dFD40ECd9f29",
+    "verify": "npx hardhat verify --network sepolia 0x954D3F9bcaEC245150B6DBfAd6A63806EBa13eCc",
     "test": "npx hardhat test"
   },
   "devDependencies": {

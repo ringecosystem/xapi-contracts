@@ -70,12 +70,16 @@ contract ConsumerExample is IXAPIConsumer {
         emit RequestMade(requestId, requestData);
     }
 
-    function xapiCallback(uint256 requestId, ResponseData memory response) external {
+    function xapiCallback(uint256 requestId, ResponseData memory response) external override {
         require(msg.sender == address(xapi), "Only XAPI can call this function");
         if (response.errorCode == 0) {
             emit ConsumeResult(requestId, response.result, response.errorCode);
         } else {
             emit ConsumeError(requestId, response.errorCode);
         }
+    }
+
+    function retryCallback(uint256 requestId) external override {
+        xapi.retryCallback(requestId);
     }
 }
