@@ -47,7 +47,12 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
             reportersFee: aggregatorConfig.reportersFee,
             publishFee: aggregatorConfig.publishFee,
             aggregator: aggregatorConfig.aggregator,
-            response: ResponseData({reporters: new address[](0), result: new bytes(0), errorCode: 0}),
+            response: ResponseData({
+                reporters: new address[](0),
+                result: new bytes(0),
+                errorCode: 0,
+                publisherPaymaster: address(0)
+            }),
             requestData: requestData
         });
         emit RequestMade(
@@ -69,8 +74,12 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
         require(_exAggregator == request.requestData.exAggregator, "!exAggregator address");
         require(request.status == RequestStatus.Pending, "!Pending");
 
-        ResponseData memory _responseData =
-            ResponseData({reporters: response.reporters, result: response.result, errorCode: response.errorCode});
+        ResponseData memory _responseData = ResponseData({
+            reporters: response.reporters,
+            result: response.result,
+            errorCode: response.errorCode,
+            publisherPaymaster: msg.sender
+        });
         request.response = _responseData;
 
         for (uint256 i = 0; i < response.reporters.length; i++) {

@@ -25,6 +25,7 @@ struct ResponseData {
     bytes result;
     // 0 if no error
     uint16 errorCode;
+    address publisherPaymaster;
 }
 
 struct EIP712Response {
