@@ -5,4 +5,6 @@ import "xapi/contracts/interfaces/IXAPI.sol";
 
 interface IXAPIConsumer {
     function xapiCallback(uint256 requestId, ResponseData memory response) external;
+    
+    function retryCallback(uint256 requestId) external;
 }
