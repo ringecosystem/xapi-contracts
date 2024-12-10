@@ -51,13 +51,6 @@ struct EIP712AggregatorConfig {
     uint256 version;
 }
 
-struct EIP712Domain {
-    string name;
-    string version;
-    uint256 chainId;
-    address verifyingContract;
-}
-
 interface IXAPI {
     event RequestMade(
         uint256 indexed requestId,
