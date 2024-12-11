@@ -2,20 +2,20 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x954D3F9bcaEC245150B6DBfAd6A63806EBa13eCc",
-      "txHash": "0x195dea3426b25e5416fe97e60e31c28508cceee45a1d15f3b4c0b85fc063d106",
+      "address": "0x6a7354D82655cd60dc02aA486ae3beF36506BAAB",
+      "txHash": "0xfbc52948abde835330b4a9a69d4963f161d6b91535b36a03c1f1945e96e88a77",
       "kind": "uups"
     },
     {
-      "address": "0x96090B8A5761006872C822D720865c5cAbB4a4F2",
-      "txHash": "0x5049eec5490d50a1ca729ce1e15122e233ccde41efa789abb467201080b6e34f",
+      "address": "0x7BB45D2a2EB8209722420C1D93FD5E14c4705E9b",
+      "txHash": "0x231ecba15e008bc421e607ddb530a3f3592659094595af8465cbc19e57c5b435",
       "kind": "uups"
     }
   ],
   "impls": {
-    "57903ec081fac61a966e77bef6212b90ca8a13de7b3cd36043264a89fdd5eca5": {
-      "address": "0x5E20235e12acf28A7871adD9B85375e102CF184f",
-      "txHash": "0x9698d5da06fb5c8c5d722165ee41e5e10422e74ae0ac606fe348cd6fd284313d",
+    "e87aeae6ee803e4d0f204249b658fcfaf3d5fd66db761022798b73ff3c69352e": {
+      "address": "0x18fb24e073751a49684783bb5D7bCB06C472340c",
+      "txHash": "0xffc2046707a757734ea3ad7c28ecf8a9a4226b9c7729dbefb5323d9831adfea8",
       "layout": {
         "solcVersion": "0.8.27",
         "storage": [
@@ -25,23 +25,23 @@
             "slot": "0",
             "type": "t_uint256",
             "contract": "XAPI",
-            "src": "contracts/XAPI.sol:15"
+            "src": "contracts/XAPI.sol:14"
           },
           {
             "label": "requests",
             "offset": 0,
             "slot": "1",
-            "type": "t_mapping(t_uint256,t_struct(Request)5117_storage)",
+            "type": "t_mapping(t_uint256,t_struct(Request)3177_storage)",
             "contract": "XAPI",
-            "src": "contracts/XAPI.sol:16"
+            "src": "contracts/XAPI.sol:15"
           },
           {
             "label": "aggregatorConfigs",
             "offset": 0,
             "slot": "2",
-            "type": "t_mapping(t_address,t_struct(AggregatorConfig)5150_storage)",
+            "type": "t_mapping(t_address,t_struct(AggregatorConfig)3200_storage)",
             "contract": "XAPI",
-            "src": "contracts/XAPI.sol:17"
+            "src": "contracts/XAPI.sol:16"
           },
           {
             "label": "rewards",
@@ -49,7 +49,15 @@
             "slot": "3",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "XAPI",
-            "src": "contracts/XAPI.sol:18"
+            "src": "contracts/XAPI.sol:17"
+          },
+          {
+            "label": "DOMAIN_SEPARATOR",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_bytes32",
+            "contract": "XAPI",
+            "src": "contracts/XAPI.sol:154"
           }
         ],
         "types": {
@@ -60,44 +68,6 @@
           "t_bool": {
             "label": "bool",
             "numberOfBytes": "1"
-          },
-          "t_bytes32": {
-            "label": "bytes32",
-            "numberOfBytes": "32"
-          },
-          "t_string_storage": {
-            "label": "string",
-            "numberOfBytes": "32"
-          },
-          "t_struct(EIP712Storage)677_storage": {
-            "label": "struct EIP712Upgradeable.EIP712Storage",
-            "members": [
-              {
-                "label": "_hashedName",
-                "type": "t_bytes32",
-                "offset": 0,
-                "slot": "0"
-              },
-              {
-                "label": "_hashedVersion",
-                "type": "t_bytes32",
-                "offset": 0,
-                "slot": "1"
-              },
-              {
-                "label": "_name",
-                "type": "t_string_storage",
-                "offset": 0,
-                "slot": "2"
-              },
-              {
-                "label": "_version",
-                "type": "t_string_storage",
-                "offset": 0,
-                "slot": "3"
-              }
-            ],
-            "numberOfBytes": "128"
           },
           "t_struct(InitializableStorage)490_storage": {
             "label": "struct Initializable.InitializableStorage",
@@ -149,6 +119,10 @@
             "label": "address[]",
             "numberOfBytes": "32"
           },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
           "t_bytes4": {
             "label": "bytes4",
             "numberOfBytes": "4"
@@ -157,7 +131,7 @@
             "label": "bytes",
             "numberOfBytes": "32"
           },
-          "t_enum(RequestStatus)5121": {
+          "t_enum(RequestStatus)3181": {
             "label": "enum RequestStatus",
             "members": [
               "Pending",
@@ -166,7 +140,7 @@
             ],
             "numberOfBytes": "1"
           },
-          "t_mapping(t_address,t_struct(AggregatorConfig)5150_storage)": {
+          "t_mapping(t_address,t_struct(AggregatorConfig)3200_storage)": {
             "label": "mapping(address => struct AggregatorConfig)",
             "numberOfBytes": "32"
           },
@@ -174,11 +148,15 @@
             "label": "mapping(address => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Request)5117_storage)": {
+          "t_mapping(t_uint256,t_struct(Request)3177_storage)": {
             "label": "mapping(uint256 => struct Request)",
             "numberOfBytes": "32"
           },
-          "t_struct(AggregatorConfig)5150_storage": {
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(AggregatorConfig)3200_storage": {
             "label": "struct AggregatorConfig",
             "members": [
               {
@@ -214,7 +192,7 @@
             ],
             "numberOfBytes": "160"
           },
-          "t_struct(Request)5117_storage": {
+          "t_struct(Request)3177_storage": {
             "label": "struct Request",
             "members": [
               {
@@ -225,7 +203,7 @@
               },
               {
                 "label": "requestData",
-                "type": "t_struct(Request)5308_storage",
+                "type": "t_struct(Request)3349_storage",
                 "offset": 0,
                 "slot": "1"
               },
@@ -237,13 +215,13 @@
               },
               {
                 "label": "status",
-                "type": "t_enum(RequestStatus)5121",
+                "type": "t_enum(RequestStatus)3181",
                 "offset": 20,
                 "slot": "4"
               },
               {
                 "label": "response",
-                "type": "t_struct(ResponseData)5129_storage",
+                "type": "t_struct(ResponseData)3189_storage",
                 "offset": 0,
                 "slot": "5"
               },
@@ -262,7 +240,7 @@
             ],
             "numberOfBytes": "320"
           },
-          "t_struct(Request)5308_storage": {
+          "t_struct(Request)3349_storage": {
             "label": "struct XAPIBuilder.Request",
             "members": [
               {
@@ -286,7 +264,7 @@
             ],
             "numberOfBytes": "96"
           },
-          "t_struct(ResponseData)5129_storage": {
+          "t_struct(ResponseData)3189_storage": {
             "label": "struct ResponseData",
             "members": [
               {
@@ -358,40 +336,6 @@
               "slot": "0"
             }
           ],
-          "erc7201:openzeppelin.storage.EIP712": [
-            {
-              "contract": "EIP712Upgradeable",
-              "label": "_hashedName",
-              "type": "t_bytes32",
-              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:39",
-              "offset": 0,
-              "slot": "0"
-            },
-            {
-              "contract": "EIP712Upgradeable",
-              "label": "_hashedVersion",
-              "type": "t_bytes32",
-              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:41",
-              "offset": 0,
-              "slot": "1"
-            },
-            {
-              "contract": "EIP712Upgradeable",
-              "label": "_name",
-              "type": "t_string_storage",
-              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:43",
-              "offset": 0,
-              "slot": "2"
-            },
-            {
-              "contract": "EIP712Upgradeable",
-              "label": "_version",
-              "type": "t_string_storage",
-              "src": "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol:44",
-              "offset": 0,
-              "slot": "3"
-            }
-          ],
           "erc7201:openzeppelin.storage.Initializable": [
             {
               "contract": "Initializable",
@@ -413,9 +357,9 @@
         }
       }
     },
-    "0714121e0d77f2f146c53183ef97ef1b11618b79ab5af4c2c9e6bdf02a6d6a72": {
-      "address": "0x67D916206FFF1344bAEe7Ae597ba7Ce5f1f76d25",
-      "txHash": "0xb829fab0001e18406de955abd108e733481ed2eb9dbc6236e0025fb38631eaa0",
+    "e4c45eb34475464ac5db361217932fbb34331b4b888bf4130acfc94191037388": {
+      "address": "0x3CB7BEDBA882a11eEB50713133d3Be3C37bFEd0d",
+      "txHash": "0xcd64cdc3dd27264c595cf1ac878e4fcc2e9449ed65dc31373e66079365862987",
       "layout": {
         "solcVersion": "0.8.27",
         "storage": [
@@ -431,7 +375,7 @@
             "label": "requests",
             "offset": 0,
             "slot": "1",
-            "type": "t_mapping(t_uint256,t_struct(Request)5118_storage)",
+            "type": "t_mapping(t_uint256,t_struct(Request)5108_storage)",
             "contract": "XAPI",
             "src": "contracts/XAPI.sol:16"
           },
@@ -439,7 +383,7 @@
             "label": "aggregatorConfigs",
             "offset": 0,
             "slot": "2",
-            "type": "t_mapping(t_address,t_struct(AggregatorConfig)5151_storage)",
+            "type": "t_mapping(t_address,t_struct(AggregatorConfig)5141_storage)",
             "contract": "XAPI",
             "src": "contracts/XAPI.sol:17"
           },
@@ -557,7 +501,7 @@
             "label": "bytes",
             "numberOfBytes": "32"
           },
-          "t_enum(RequestStatus)5122": {
+          "t_enum(RequestStatus)5112": {
             "label": "enum RequestStatus",
             "members": [
               "Pending",
@@ -566,7 +510,7 @@
             ],
             "numberOfBytes": "1"
           },
-          "t_mapping(t_address,t_struct(AggregatorConfig)5151_storage)": {
+          "t_mapping(t_address,t_struct(AggregatorConfig)5141_storage)": {
             "label": "mapping(address => struct AggregatorConfig)",
             "numberOfBytes": "32"
           },
@@ -574,11 +518,11 @@
             "label": "mapping(address => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Request)5118_storage)": {
+          "t_mapping(t_uint256,t_struct(Request)5108_storage)": {
             "label": "mapping(uint256 => struct Request)",
             "numberOfBytes": "32"
           },
-          "t_struct(AggregatorConfig)5151_storage": {
+          "t_struct(AggregatorConfig)5141_storage": {
             "label": "struct AggregatorConfig",
             "members": [
               {
@@ -614,7 +558,7 @@
             ],
             "numberOfBytes": "160"
           },
-          "t_struct(Request)5118_storage": {
+          "t_struct(Request)5108_storage": {
             "label": "struct Request",
             "members": [
               {
@@ -625,7 +569,7 @@
               },
               {
                 "label": "requestData",
-                "type": "t_struct(Request)5309_storage",
+                "type": "t_struct(Request)5299_storage",
                 "offset": 0,
                 "slot": "1"
               },
@@ -637,13 +581,13 @@
               },
               {
                 "label": "status",
-                "type": "t_enum(RequestStatus)5122",
+                "type": "t_enum(RequestStatus)5112",
                 "offset": 20,
                 "slot": "4"
               },
               {
                 "label": "response",
-                "type": "t_struct(ResponseData)5130_storage",
+                "type": "t_struct(ResponseData)5120_storage",
                 "offset": 0,
                 "slot": "5"
               },
@@ -662,7 +606,7 @@
             ],
             "numberOfBytes": "320"
           },
-          "t_struct(Request)5309_storage": {
+          "t_struct(Request)5299_storage": {
             "label": "struct XAPIBuilder.Request",
             "members": [
               {
@@ -686,7 +630,7 @@
             ],
             "numberOfBytes": "96"
           },
-          "t_struct(ResponseData)5130_storage": {
+          "t_struct(ResponseData)5120_storage": {
             "label": "struct ResponseData",
             "members": [
               {

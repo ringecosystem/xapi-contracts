@@ -29,3 +29,7 @@ export function sizeOf(obj: any) {
     // near.log(`bytes: ${_bytes}, value: ${JSON.stringify(obj)}`);
     return _bytes;
 }
+
+export function concatSignature(r: string, s: string, v: number): string {
+    return '0x' + r.substring(2) + s + (v + 27).toString(16).padStart(2, '0');
+}

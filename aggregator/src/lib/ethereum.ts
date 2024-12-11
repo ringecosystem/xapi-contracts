@@ -1,5 +1,6 @@
 import { near } from "near-sdk-js";
-import { encodeRlp, BytesLike, RlpStructuredDataish } from "./rlp";
+import { encodeRlp, BytesLike, RlpStructuredDataish, getBytes } from "./rlp";
+import { EIP712AggregatorConfig, EIP712Domain, EIP712Response } from "../abstract/aggregator.abstract";
 
 type Address = BytesLike;
 type AccessList = Array<[Address, Array<BytesLike>]>;
@@ -106,11 +107,13 @@ export function ethereumTransaction({
 export function encodeParameter(type: string, value: any) {
     if (type === 'uint256') {
         return toHexString(BigInt(value)).slice(2).padStart(64, '0');
+    } else if (type === 'uint16') {
+        return toHexString(BigInt(value)).slice(2).padStart(4, '0');
     } else if (type === 'bytes32') {
         return value.slice(2).padStart(64, '0');
     } else if (type === 'address') {
         return value.toLowerCase().slice(2).padStart(64, '0');
-    } else if (type === 'bytes') {
+    }  else if (type === 'bytes') {
         const encodedValue = toHexString(value).slice(2);
         // near.log(`encode bytes: ${encodedValue}, value: ${value}`)
         const lengthHex = (encodedValue.length / 2).toString(16);
@@ -194,4 +197,141 @@ export function stringToBytes(str: string): string {
     }
     // near.log(`bytes: ${bytes}, string: ${str}`);
     return '0x' + bytes.map(byte => ('0' + byte.toString(16)).slice(-2)).join('');
+}
+
+//========================= eip712
+
+export function hexKeccak256(value: Uint8Array): string {
+    return toHexString(near.keccak256(value));
+}
+
+export function concatHex(hexStr: string[]): string {
+    return "0x" + hexStr.map(v => v.substring(2)).join("");
+}
+
+/**
+ *  Returns the UTF-8 byte representation of %%str%%.
+ *
+ *  Copy from ethers/utils/utf8.ts
+ */
+export function toUtf8Bytes(str: string): Uint8Array {
+    let result: Array<number> = [];
+    for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+
+        if (c < 0x80) {
+            result.push(c);
+
+        } else if (c < 0x800) {
+            result.push((c >> 6) | 0xc0);
+            result.push((c & 0x3f) | 0x80);
+
+        } else if ((c & 0xfc00) == 0xd800) {
+            i++;
+            const c2 = str.charCodeAt(i);
+
+            // Surrogate Pair
+            const pair = 0x10000 + ((c & 0x03ff) << 10) + (c2 & 0x03ff);
+            result.push((pair >> 18) | 0xf0);
+            result.push(((pair >> 12) & 0x3f) | 0x80);
+            result.push(((pair >> 6) & 0x3f) | 0x80);
+            result.push((pair & 0x3f) | 0x80);
+
+        } else {
+            result.push((c >> 12) | 0xe0);
+            result.push(((c >> 6) & 0x3f) | 0x80);
+            result.push((c & 0x3f) | 0x80);
+        }
+    }
+
+    return new Uint8Array(result);
+};
+
+export function getDomainSeparator(domain: EIP712Domain) {
+    const typeHash = hexKeccak256(
+        toUtf8Bytes(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        )
+    );
+    near.log(`getDomainSeparator typeHash: ${typeHash}`);
+    const encodeParams = [
+        encodeParameter("bytes32", typeHash),
+        encodeParameter("bytes32", hexKeccak256(toUtf8Bytes(domain.name))),
+        encodeParameter("bytes32", hexKeccak256(toUtf8Bytes(domain.version))),
+        encodeParameter("uint256", domain.chainId),
+        encodeParameter("address", domain.verifyingContract),
+    ].join('');
+    const domainHash = hexKeccak256(getBytes(`0x${encodeParams}`));
+    near.log(`getDomainSeparator domainHash: ${domainHash}`);
+    return domainHash;
+}
+
+/// AggregatorConfig EIP-712
+
+export function getAggregatorConfigStructHash(data: EIP712AggregatorConfig) {
+    const typeHash = hexKeccak256(
+        toUtf8Bytes("EIP712AggregatorConfig(string aggregator,uint256 reportersFee,uint256 publishFee,uint256 version)")
+    )
+    // 0xac9c0d5b4d00605c29266ffe9da206e8630a373e4204e116506d967ae0ea887d
+    near.log(`getAggregatorConfigStructHash typeHash: ${typeHash}`);
+
+    const encodeParams = [
+        encodeParameter("bytes32", typeHash),
+        encodeParameter("bytes32", hexKeccak256(toUtf8Bytes(data.aggregator))),
+        encodeParameter("uint256", data.reportersFee),
+        encodeParameter("uint256", data.publishFee),
+        encodeParameter("uint256", data.version),
+    ].join('');
+    const structHash = hexKeccak256(getBytes(`0x${encodeParams}`));
+    near.log(`getAggregatorConfigStructHash structHash: ${structHash}`);
+    return structHash;
+}
+
+export function buildEIP712AggregatorConfigPayload(domain: EIP712Domain, data: EIP712AggregatorConfig) {
+    const domainSeparator = getDomainSeparator(domain);
+    const sturctHash = getAggregatorConfigStructHash(data);
+    const digest = hexKeccak256(
+        getBytes(concatHex(["0x1901", domainSeparator, sturctHash]))
+    );
+    near.log(`buildAggregatorConfigEIP712Payload digest: ${digest}`);
+    const toSignMessage = getBytes(digest);
+    near.log(`buildAggregatorConfigEIP712Payload toSignMessage: ${toSignMessage}`)
+    return toSignMessage;
+}
+
+export function getResponseStructHash(data: EIP712Response) {
+    const typeHash = hexKeccak256(
+        toUtf8Bytes("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode)")
+    )
+    near.log(`getResponseStructHash typeHash: ${typeHash}`);
+
+    const offsetAddresses = (160).toString(16).padStart(64, '0');
+    const addresses = data.reporters.map((addr: string) => encodeParameter('address', addr)).join('');
+    const addressesLength = (data.reporters.length).toString(16).padStart(64, '0');
+    const addressesData = addressesLength + addresses;
+
+    const encodeParams = [
+        encodeParameter("bytes32", typeHash),
+        encodeParameter("uint256", data.requestId),
+        offsetAddresses,
+        encodeParameter("bytes32", hexKeccak256(getBytes(data.result))),
+        encodeParameter("uint256", data.errorCode),
+        addressesData
+    ].join('');
+    near.log(`encode RESPONSE: ${encodeParams}, result: ${hexKeccak256(getBytes(data.result))}`);
+    const structHash = hexKeccak256(getBytes(`0x${encodeParams}`));
+    near.log(`getResponseStructHash structHash: ${structHash}`);
+    return structHash;
+}
+
+export function buildEIP712ResponsePayload(domain: EIP712Domain, data: EIP712Response) {
+    const domainSeparator = getDomainSeparator(domain);
+    const sturctHash = getResponseStructHash(data);
+    const digest = hexKeccak256(
+        getBytes(concatHex(["0x1901", domainSeparator, sturctHash]))
+    );
+    near.log(`buildEIP712ResponsePayload digest: ${digest}`);
+    const toSignMessage = getBytes(digest);
+    near.log(`buildEIP712ResponsePayload toSignMessage: ${toSignMessage}`)
+    return toSignMessage;
 }

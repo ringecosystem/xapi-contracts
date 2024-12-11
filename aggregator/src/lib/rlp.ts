@@ -90,7 +90,7 @@ export type HexString = string;
  */
 export type BytesLike = DataHexString | Uint8Array;
 
-function getBytes(value: BytesLike, name?: string, copy?: boolean): Uint8Array | null {
+export function getBytes(value: BytesLike, name?: string, copy?: boolean): Uint8Array | null {
     if (value instanceof Uint8Array) {
         if (copy) { return new Uint8Array(value); }
         return value;

@@ -1,6 +1,6 @@
 // Find all our documentation at https://docs.near.org
 import { NearBindgen, near, call, view, assert, NearPromise, AccountId } from "near-sdk-js";
-import { Aggregator, Answer, DataSource, ChainId, MpcConfig, MpcOptions, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData, Timestamp } from "./abstract/aggregator.abstract";
+import { Aggregator, Answer, DataSource, ChainId, MpcConfig, PublishChainConfig, PublishData, Report, ReporterRequired, RequestId, Response, Staked, SyncPublishChainConfigData } from "./abstract/aggregator.abstract";
 import { ContractSourceMetadata, Standard } from "../../common/src/standard.abstract";
 import { encodeParameter, stringToBytes } from "./lib/ethereum";
 
@@ -11,7 +11,7 @@ class OrmpAggregator extends Aggregator {
   constructor() {
     super({
       description: "Test Aggregator",
-      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: "500000000000000000000000" }),
+      mpc_config: new MpcConfig({ mpc_contract: "v1.signer-prod.testnet", attached_balance: "500000000000000000000000", key_version: 0 }),
       reporter_required: new ReporterRequired(3, 5),
       staking_contract: "staking.xapi.testnet",
       contract_metadata: new ContractSourceMetadata({
@@ -139,14 +139,22 @@ class OrmpAggregator extends Aggregator {
 
   /// Calls
 
+  // // todo !!! just for testing, remember to remove it
+  // @call({})
+  // clear_request({ request_id }: { request_id: RequestId }) {
+  //   this._assert_operator();
+  //   this.report_lookup.remove(request_id);
+  //   this.response_lookup.remove(request_id);
+  // }
+
   @call({})
-  publish_external({ request_id, mpc_options }: { request_id: RequestId; mpc_options: MpcOptions }): NearPromise {
-    return super._publish({ request_id, mpc_options });
+  publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
+    return super._publish({ request_id });
   }
 
   @call({ privateFunction: true })
-  publish_callback({ request_id, mpc_options, call_data }: { request_id: RequestId; mpc_options: MpcOptions, call_data: string }): PublishData {
-    return super._publish_callback({ request_id, mpc_options, call_data });
+  publish_callback({ request_id }: { request_id: RequestId; }): PublishData {
+    return super._publish_callback({ request_id });
   }
 
   @call({ privateFunction: true })
@@ -165,13 +173,13 @@ class OrmpAggregator extends Aggregator {
   }
 
   @call({})
-  sync_publish_config_to_remote({ chain_id, mpc_options }: { chain_id: ChainId; mpc_options: MpcOptions; }): NearPromise {
-    return super._sync_publish_config_to_remote({ chain_id, mpc_options });
+  sync_publish_config_to_remote({ chain_id }: { chain_id: ChainId; }): NearPromise {
+    return super._sync_publish_config_to_remote({ chain_id });
   }
 
   @call({ privateFunction: true })
-  sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version }: { chain_id: ChainId; mpc_options: MpcOptions; call_data: string; version: string; }): SyncPublishChainConfigData {
-    return super._sync_publish_config_to_remote_callback({ chain_id, mpc_options, call_data, version });
+  sync_publish_config_to_remote_callback({ chain_id, version }: { chain_id: ChainId; version: string; }): SyncPublishChainConfigData {
+    return super._sync_publish_config_to_remote_callback({ chain_id, version });
   }
 
   @call({ payableFunction: true })
