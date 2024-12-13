@@ -139,17 +139,17 @@ class OrmpAggregator extends Aggregator {
 
   /// Calls
 
-  // // todo !!! just for testing, remember to remove it
-  // @call({})
-  // clear_request({ request_id }: { request_id: RequestId }) {
-  //   this._assert_operator();
-  //   this.report_lookup.remove(request_id);
-  //   this.response_lookup.remove(request_id);
-  // }
+  // todo !!! just for testing, remember to remove it
+  @call({})
+  clear_request({ request_id }: { request_id: RequestId }) {
+    this._assert_operator();
+    this.report_lookup.remove(request_id);
+    this.response_lookup.remove(request_id);
+  }
 
   @call({})
-  publish_external({ request_id }: { request_id: RequestId; }): NearPromise {
-    return super._publish({ request_id });
+  publish_external({ request_id, publisher_paymaster }: { request_id: RequestId; publisher_paymaster: string }): NearPromise {
+    return super._publish({ request_id, publisher_paymaster });
   }
 
   @call({ privateFunction: true })

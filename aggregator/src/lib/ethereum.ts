@@ -301,7 +301,7 @@ export function buildEIP712AggregatorConfigPayload(domain: EIP712Domain, data: E
 
 export function getResponseStructHash(data: EIP712Response) {
     const typeHash = hexKeccak256(
-        toUtf8Bytes("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode)")
+        toUtf8Bytes("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode,address publisherPaymaster)")
     )
     near.log(`getResponseStructHash typeHash: ${typeHash}`);
 
@@ -316,6 +316,7 @@ export function getResponseStructHash(data: EIP712Response) {
         offsetAddresses,
         encodeParameter("bytes32", hexKeccak256(getBytes(data.result))),
         encodeParameter("uint256", data.errorCode),
+        encodeParameter("address", data.publisherPaymaster),
         addressesData
     ].join('');
     near.log(`encode RESPONSE: ${encodeParams}, result: ${hexKeccak256(getBytes(data.result))}`);
