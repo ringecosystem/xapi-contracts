@@ -305,7 +305,7 @@ export function getResponseStructHash(data: EIP712Response) {
     )
     near.log(`getResponseStructHash typeHash: ${typeHash}`);
 
-    const offsetAddresses = (160).toString(16).padStart(64, '0');
+    const offsetAddresses = (192).toString(16).padStart(64, '0');
     const addresses = data.reporters.map((addr: string) => encodeParameter('address', addr)).join('');
     const addressesLength = (data.reporters.length).toString(16).padStart(64, '0');
     const addressesData = addressesLength + addresses;

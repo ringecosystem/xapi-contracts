@@ -211,7 +211,8 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
                 response.requestId,
                 response.reporters,
                 keccak256(response.result),
-                response.errorCode
+                response.errorCode,
+                response.publisherPaymaster
             )
         );
     }
