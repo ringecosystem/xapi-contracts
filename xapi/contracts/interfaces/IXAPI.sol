@@ -34,6 +34,7 @@ struct EIP712Response {
     bytes result;
     // 0 if no error
     uint16 errorCode;
+    address publisherPaymaster;
 }
 
 struct AggregatorConfig {

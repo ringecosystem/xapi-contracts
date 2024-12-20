@@ -191,7 +191,7 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
     }
 
     bytes32 public constant EIP712_RESPONSE_TYPE_HASH =
-        keccak256("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode)");
+        keccak256("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode,address publisherPaymaster)");
 
     function verifyResponseSignature(EIP712Response memory response, bytes memory signature)
         public
@@ -211,7 +211,8 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
                 response.requestId,
                 response.reporters,
                 keccak256(response.result),
-                response.errorCode
+                response.errorCode,
+                response.publisherPaymaster
             )
         );
     }

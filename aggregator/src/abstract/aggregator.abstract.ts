@@ -179,6 +179,7 @@ export class Response {
   started_at: Timestamp;
   updated_at: Timestamp;
   status: string;
+  publisher_paymaster: string;
 
   // 👇 These values should be aggregated from reporter's answer
   // !!! Encode it to bytes in _aggregate
@@ -202,6 +203,8 @@ export class EIP712Response {
   result: string;
   // Leave it 0 if there's no error. MAX: 65535(uint16)
   errorCode: number;
+  // The EVM address that pays gas fee and withdraw the rewards.
+  publisherPaymaster: string;
 }
 
 export class Report {
@@ -647,12 +650,14 @@ export abstract class Aggregator extends ContractBase {
     }
   }
 
-  abstract publish_external({ request_id }: { request_id: RequestId }): NearPromise;
-  _publish({ request_id }: { request_id: RequestId }): NearPromise {
+  abstract publish_external({ request_id, publisher_paymaster }: { request_id: RequestId, publisher_paymaster: string }): NearPromise;
+  _publish({ request_id, publisher_paymaster }: { request_id: RequestId, publisher_paymaster: string }): NearPromise {
 
     const _response = this.response_lookup.get(request_id);
     assert(_response != null, `Response for ${request_id} does not exist`);
     assert(_response.status == RequestStatus[RequestStatus.AGGREGATED] || _response.status == RequestStatus[RequestStatus.PUBLISHED], `Response status is ${_response.status}, can't be published`);
+
+    _response.publisher_paymaster = publisher_paymaster;
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
@@ -669,6 +674,7 @@ export abstract class Aggregator extends ContractBase {
       "reporters": _response.reporter_reward_addresses,
       "result": _response.result,
       "errorCode": _response.error_code,
+      "publisherPaymaster": publisher_paymaster
     }
 
     const payload = buildEIP712ResponsePayload(eip712_domain, eip712_response);
@@ -717,7 +723,8 @@ export abstract class Aggregator extends ContractBase {
           requestId: request_id,
           reporters: _response.reporter_reward_addresses,
           result: _response.result,
-          errorCode: _response.error_code
+          errorCode: _response.error_code,
+          publisherPaymaster: _response.publisher_paymaster
         },
         eip712_domain: {
           name: PROTOCAL_NAME,
