@@ -147,7 +147,7 @@ class OrmpAggregator extends Aggregator {
     this.response_lookup.remove(request_id);
   }
 
-  @call({})
+  @call({ payableFunction: true })
   publish_external({ request_id, publisher_paymaster }: { request_id: RequestId; publisher_paymaster: string }): NearPromise {
     return super._publish({ request_id, publisher_paymaster });
   }
@@ -172,7 +172,7 @@ class OrmpAggregator extends Aggregator {
     return super._try_aggregate({ request_id });
   }
 
-  @call({})
+  @call({ payableFunction: true })
   sync_publish_config_to_remote({ chain_id }: { chain_id: ChainId; }): NearPromise {
     return super._sync_publish_config_to_remote({ chain_id });
   }

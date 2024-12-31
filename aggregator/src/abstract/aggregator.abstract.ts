@@ -376,6 +376,13 @@ export abstract class Aggregator extends ContractBase {
     const _latest_config = this.publish_chain_config_lookup.get(chain_id);
     assert(_latest_config != null, `No publish chain config for ${chain_id}`);
 
+    const _deposit = near.attachedDeposit();
+    const _required_deposit = BigInt(this.mpc_config.attached_balance);
+    assert(
+      _deposit == _required_deposit,
+      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
+    );
+
     const eip712_domain: EIP712Domain = {
       name: PROTOCAL_NAME,
       version: PROTOCOL_VERSION,
@@ -661,6 +668,13 @@ export abstract class Aggregator extends ContractBase {
 
     const _chain_config = this.publish_chain_config_lookup.get(_response.chain_id);
     assert(_chain_config != null, `Chain config for ${_response.chain_id} does not exist`);
+
+    const _deposit = near.attachedDeposit();
+    const _required_deposit = BigInt(this.mpc_config.attached_balance);
+    assert(
+      _deposit == _required_deposit,
+      `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
+    );
 
     const eip712_domain: EIP712Domain = {
       name: PROTOCAL_NAME,
