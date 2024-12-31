@@ -78,14 +78,14 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
             reporters: response.reporters,
             result: response.result,
             errorCode: response.errorCode,
-            publisherPaymaster: msg.sender
+            publisherPaymaster: response.publisherPaymaster
         });
         request.response = _responseData;
 
         for (uint256 i = 0; i < response.reporters.length; i++) {
             rewards[response.reporters[i]] += request.reportersFee / response.reporters.length;
         }
-        rewards[msg.sender] += request.publishFee;
+        rewards[response.publisherPaymaster] += request.publishFee;
 
         (bool success,) = request.requester.call(
             abi.encodeWithSelector(request.requestData.callbackFunctionId, response.requestId, request.response)
@@ -190,8 +190,9 @@ contract XAPI is Initializable, IXAPI, EIP712Upgradeable, Ownable2StepUpgradeabl
         );
     }
 
-    bytes32 public constant EIP712_RESPONSE_TYPE_HASH =
-        keccak256("EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode,address publisherPaymaster)");
+    bytes32 public constant EIP712_RESPONSE_TYPE_HASH = keccak256(
+        "EIP712Response(uint256 requestId,address[] reporters,bytes result,uint16 errorCode,address publisherPaymaster)"
+    );
 
     function verifyResponseSignature(EIP712Response memory response, bytes memory signature)
         public
