@@ -174,6 +174,7 @@ export class Response {
   request_id: RequestId;
   chain_id: ChainId;
   valid_reporters: AccountId[];
+  reports: Report[];
   // EVM address to distribute rewards
   reporter_reward_addresses: string[];
   started_at: Timestamp;
@@ -192,6 +193,7 @@ export class Response {
     this.started_at = near.blockTimestamp().toString();
     this.status = RequestStatus[RequestStatus.FETCHING];
     this.error_code = 0;
+    this.reports = new Array<Report>();
   }
 }
 
@@ -265,8 +267,6 @@ export abstract class Aggregator extends ContractBase {
   reporter_required: ReporterRequired;
   // key: data_source name
   data_sources: UnorderedMap<DataSource>;
-  // key: request_id, subKey: reporter accountId
-  report_lookup: LookupMap<Report[]>;
   // key: request_id
   response_lookup: LookupMap<Response>;
   // key: chain_id
@@ -280,7 +280,6 @@ export abstract class Aggregator extends ContractBase {
     this.reporter_required = reporter_required;
     this.staking_contract = staking_contract;
     this.data_sources = new UnorderedMap("data_sources");
-    this.report_lookup = new LookupMap("report_lookup");
     this.response_lookup = new LookupMap("response_lookup");
     this.publish_chain_config_lookup = new LookupMap("publish_chain_config_lookup");
   }
@@ -470,8 +469,8 @@ export abstract class Aggregator extends ContractBase {
 
   abstract get_reports({ request_id }: { request_id: RequestId }): Report[];
   _get_reports({ request_id }: { request_id: RequestId }): Report[] {
-    const _reports = this.report_lookup.get(request_id);
-    return _reports;
+    const _response = this.response_lookup.get(request_id);
+    return _response?.reports || [];
   }
 
   abstract get_latest_response(): Response;
@@ -502,12 +501,6 @@ export abstract class Aggregator extends ContractBase {
       `Wrong deposit, deposit: ${_deposit}, required: ${_required_deposit}`
     );
 
-    const __report = new Report({
-      request_id,
-      answers,
-      reward_address
-    });
-
     let _response = this.response_lookup.get(request_id);
     if (_response == null) {
       // Maybe first report
@@ -515,10 +508,6 @@ export abstract class Aggregator extends ContractBase {
       this.response_lookup.set(
         request_id,
         new Response(request_id)
-      );
-      this.report_lookup.set(
-        request_id,
-        new Array<Report>()
       );
       _response = this.response_lookup.get(request_id);
     }
@@ -529,11 +518,17 @@ export abstract class Aggregator extends ContractBase {
       `The request status is ${_response.status}`
     );
 
-    const _reports = this.report_lookup.get(request_id);
     const _signer = near.signerAccountId();
-    assert(_reports.find(r => r.reporter === _signer) == null, "Already reported");
-    _reports.push(__report);
-    this.report_lookup.set(request_id, _reports);
+    assert(
+      !_response.reports.some(r => r.reporter === _signer),
+      "Already reported"
+    );
+    const __report = new Report({
+      request_id,
+      answers,
+      reward_address
+    });
+    _response.reports.push(__report);
     this.response_lookup.set(request_id, _response);
     new ReportEvent(__report).emit();
     return this._try_aggregate({ request_id });

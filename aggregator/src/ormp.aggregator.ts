@@ -27,22 +27,23 @@ class OrmpAggregator extends Aggregator {
   }
 
   _can_aggregate({ request_id }: { request_id: RequestId }): boolean {
-    return this.report_lookup.get(request_id).length >= this.reporter_required.threshold;
+    return this.response_lookup.get(request_id).reports.length >= this.reporter_required.threshold;
   }
 
   _aggregate({ request_id, top_staked }: { request_id: RequestId, top_staked: Staked[] }): void {
     // 1. Filter invalid reports via top staked reporters
-    const _reporters = this.report_lookup.get(request_id).map(r => r.reporter);
-    const _valid_reporters = _reporters.filter(reporter =>
-      top_staked.some(staked => staked.account_id === reporter)
-    );
+    const _response = this.response_lookup.get(request_id);
+    const _valid_reporters = _response.reports
+      .map(r => r.reporter)
+      .filter(reporter =>
+        top_staked.some(s => s.account_id === reporter)
+      );
     near.log("valid_reporters: ", JSON.stringify(_valid_reporters));
     if (_valid_reporters.length == 0) {
       near.log("No valid reporters");
       return;
     }
-    const _reports = this.report_lookup.get(request_id);
-    const _valid_reports = _reports.filter(r => _valid_reporters.includes(r.reporter));
+    const _valid_reports = _response.reports.filter(r => _valid_reporters.includes(r.reporter));
 
     const _each_reporter_report = [];
     const _each_reporter_result = new Map<string, string>();
@@ -143,7 +144,6 @@ class OrmpAggregator extends Aggregator {
   @call({})
   clear_request({ request_id }: { request_id: RequestId }) {
     this._assert_operator();
-    this.report_lookup.remove(request_id);
     this.response_lookup.remove(request_id);
   }
 
