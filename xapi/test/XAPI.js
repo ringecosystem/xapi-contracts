@@ -1,79 +1,143 @@
-const {
-  loadFixture,
-} = require("@nomicfoundation/hardhat-toolbox/network-helpers");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+const { loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 
-function encodeRequestId(chainId, count) {
-  return chainId << 192n | BigInt(count);
+const configTypes = {
+  EIP712AggregatorConfig: [
+    { name: "aggregator", type: "string" },
+    { name: "reportersFee", type: "uint256" },
+    { name: "publishFee", type: "uint256" },
+    { name: "version", type: "uint256" },
+  ],
+};
+
+async function signingDomain(contract) {
+  const network = await ethers.provider.getNetwork();
+  return {
+    name: "XAPI",
+    version: "1",
+    chainId: network.chainId,
+    verifyingContract: await contract.getAddress(),
+  };
 }
 
 describe("XAPI", function () {
   async function deployXAPIFixture() {
-    const [owner, otherAccount] = await ethers.getSigners();
-
+    const [owner] = await ethers.getSigners();
     const XAPI = await ethers.getContractFactory("XAPI");
-    const xapi = await XAPI.deploy();
-
-    return { xapi, owner, otherAccount };
+    const xapi = await upgrades.deployProxy(XAPI, [owner.address]);
+    await xapi.waitForDeployment();
+    return { xapi, owner };
   }
 
-  describe("Deployment", function () {
-    it("Should set the right owner", async function () {
-      const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      expect(await xapi.owner()).to.equal(owner.address);
-    });
+  async function configureAggregator(xapi, aggregator) {
+    const config = {
+      aggregator: "testAggregator",
+      reportersFee: 500n,
+      publishFee: 1000n,
+      version: 1n,
+    };
+    const signature = await aggregator.signTypedData(
+      await signingDomain(xapi),
+      configTypes,
+      config
+    );
+    await xapi.setAggregatorConfig(config, signature);
+    return config;
+  }
+
+  function makeRequestData(aggregator) {
+    return {
+      exAggregator: aggregator.address,
+      callbackFunctionId: "0x12345678",
+      buf: { buf: "0xa0", capacity: 1n },
+    };
+  }
+
+  it("initializes ownership", async function () {
+    const { xapi, owner } = await loadFixture(deployXAPIFixture);
+    expect(await xapi.owner()).to.equal(owner.address);
   });
 
-  describe("Aggregator Configuration", function () {
-    it("Should set aggregator config correctly", async function () {
-      const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
-      const config = await xapi.aggregatorConfigs(owner.address);
-      expect(config.aggregator).to.equal("testAggregator");
-      expect(config.perReporterFee).to.equal(100);
-      expect(config.publishFee).to.equal(1000);
-      expect(config.suspended).to.be.false;
-    });
+  it("stores a signed aggregator configuration", async function () {
+    const { xapi, owner } = await loadFixture(deployXAPIFixture);
+    const config = await configureAggregator(xapi, owner);
+    const stored = await xapi.aggregatorConfigs(owner.address);
+    expect(stored.aggregator).to.equal(config.aggregator);
+    expect(stored.reportersFee).to.equal(config.reportersFee);
+    expect(stored.publishFee).to.equal(config.publishFee);
+    expect(stored.version).to.equal(config.version);
+    expect(stored.suspended).to.equal(false);
   });
 
-  describe("Make Request", function () {
-    it("Should create a new request", async function () {
-      const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
-      const requestData = "test data";
-      const callbackFunction = "0x12345678";
-      const requestFee = 1500; // 5 * 100 + 1000
+  it("creates a request with the configured fee", async function () {
+    const { xapi, owner } = await loadFixture(deployXAPIFixture);
+    const config = await configureAggregator(xapi, owner);
+    const requestData = makeRequestData(owner);
+    const requestArgs = [
+      requestData.exAggregator,
+      requestData.callbackFunctionId,
+      [requestData.buf.buf, requestData.buf.capacity],
+    ];
+    const { chainId } = await ethers.provider.getNetwork();
+    const requestId = (chainId << 192n) | 1n;
+    const fee = config.reportersFee + config.publishFee;
 
-      await expect(xapi.makeRequest(requestData, callbackFunction, owner.address, { value: requestFee }))
-        .to.emit(xapi, "RequestMade")
-        .withArgs(anyValue, "testAggregator", requestData, owner.address);
-    });
+    await expect(xapi.makeRequest(requestData, { value: fee }))
+      .to.emit(xapi, "RequestMade")
+      .withArgs(
+        requestId,
+        config.aggregator,
+        requestArgs,
+        owner.address,
+        config.reportersFee,
+        config.publishFee
+      );
+
+    const stored = await xapi.requests(requestId);
+    expect(stored.requestData.toArray(true)).to.deep.equal(requestArgs);
+    expect(stored.requester).to.equal(owner.address);
+    expect(await xapi.requestCount()).to.equal(1);
+    expect(await xapi.fee(owner.address)).to.equal(fee);
   });
 
-  describe("Fulfill Request", function () {
-    it("Should fulfill a request", async function () {
-      const { xapi, owner } = await loadFixture(deployXAPIFixture);
-      // Setup and make a request first
-      await xapi.setAggregatorConfig("testAggregator", 100, 1000, owner.address, 5);
-      const requestData = "test data";
-      const callbackFunction = "0x12345678";
-      const requestFee = 1500;
-      await xapi.makeRequest(requestData, callbackFunction, owner.address, { value: requestFee });
-
-      const chainId = await ethers.provider.getNetwork().then(n => n.chainId);
-      const requestId = encodeRequestId(chainId, 1);
-      console.log("requestId", requestId);
-      // Now fulfill the request
-      const response = {
-        reporters: [owner.address, owner.address, owner.address],
-        result: "0x1234"
-      };
-      await expect(xapi.fulfill(requestId, response))
-        .to.emit(xapi, "Fulfilled")
-        .withArgs(requestId, anyValue, anyValue);
+  it("fulfills a request with a signed response", async function () {
+    const { xapi, owner } = await loadFixture(deployXAPIFixture);
+    const aggregator = ethers.Wallet.createRandom();
+    const config = await configureAggregator(xapi, aggregator);
+    await xapi.makeRequest(makeRequestData(aggregator), {
+      value: config.reportersFee + config.publishFee,
     });
-  });
 
+    const domain = await signingDomain(xapi);
+    const requestId = (domain.chainId << 192n) | 1n;
+    const response = {
+      requestId,
+      reporters: [aggregator.address],
+      result: "0x1234",
+      errorCode: 0n,
+      publisherPaymaster: owner.address,
+    };
+    const digest = ethers.solidityPackedKeccak256(
+      ["bytes2", "bytes32", "bytes32"],
+      ["0x1901", ethers.TypedDataEncoder.hashDomain(domain), await xapi.hashResponse(response)]
+    );
+    const signature = aggregator.signingKey.sign(digest).serialized;
+
+    const fulfilled = 1n;
+    const responseArgs = [
+      response.reporters,
+      response.result,
+      response.errorCode,
+      response.publisherPaymaster,
+    ];
+    await expect(xapi.fulfill(response, signature))
+      .to.emit(xapi, "Fulfilled")
+      .withArgs(requestId, responseArgs, fulfilled);
+    const request = await xapi.requests(requestId);
+    expect(request.status).to.equal(fulfilled);
+    expect(request.response.toArray(true)).to.deep.equal(responseArgs);
+    expect(await xapi.rewards(aggregator.address)).to.equal(config.reportersFee);
+    expect(await xapi.rewards(owner.address)).to.equal(config.publishFee);
+  });
 });

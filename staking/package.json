@@ -17,7 +17,7 @@
     "ava": "ava"
   },
   "dependencies": {
-    "near-sdk-js": "^2.0.0"
+    "near-sdk-js": "2.0.0"
   },
   "devDependencies": {
     "ava": "^6.1.3",
@@ -28,5 +28,27 @@
     "files": [
       "sandbox-test/*.ava.js"
     ]
+  },
+  "resolutions": {
+    "@babel/core": "7.29.6",
+    "**/eslint/ajv": "6.14.0",
+    "**/@eslint/eslintrc/ajv": "6.14.0",
+    "base-x": "3.0.11",
+    "browserslist": "4.28.7",
+    "cross-spawn": "7.0.5",
+    "decode-uri-component": "0.5.1",
+    "diff": "4.0.4",
+    "fast-uri": "3.1.9",
+    "flatted": "3.4.2",
+    "**/supertap/js-yaml": "3.15.2",
+    "js-yaml": "4.3.2",
+    "lodash": "4.18.1",
+    "lodash-es": "4.18.1",
+    "**/@ts-morph/common/minimatch": "5.1.8",
+    "minimatch": "3.1.4",
+    "**/ava/picomatch": "3.0.2",
+    "picomatch": "2.3.2",
+    "rollup": "2.80.0",
+    "tar": "7.5.18"
   }
 }
